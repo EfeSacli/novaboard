@@ -1,0 +1,21 @@
+========================================================================
+   NOVABOARD - PARDUS (MEB FATİH AKILLI TAHTA) KULLANIM REHBERİ
+========================================================================
+
+1. KURULUMLU SÜRÜM (.deb Paketi İle Tek Tıkla Kurulum):
+   - "Novaboard-Pardus-Kurulumlu-v1.0.deb" dosyasına çift tıklayarak
+     Pardus Paket Kurucu ile yükleyin veya uçbirimden (Terminal):
+       sudo apt install ./Novaboard-Pardus-Kurulumlu-v1.0.deb
+     komutunu çalıştırın.
+   - Kurulum tamamlandığında Başlat Menüsü > Eğitim > Novaboard
+     altından doğrudan çalıştırabilirsiniz.
+
+2. KURULUMSUZ SÜRÜM (.zip Paketi İle Şifresiz Çalıştırma):
+   - "Novaboard-Pardus-Kurulumsuz-v1.0.zip" arşivini masaüstüne çıkartın.
+   - Klasör içindeki "baslat.sh" veya "novaboard.desktop" dosyasına
+     çift tıklayarak doğrudan başlatın.
+   - İsterseniz "kurulum_pardus.sh" betiğini çalıştırarak yönetici
+     şifresi gerekmeden masaüstünüze ve başlat menünüze kısayol
+     ekleyebilirsiniz:
+       bash kurulum_pardus.sh
+========================================================================

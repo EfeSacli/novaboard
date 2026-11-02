@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Novaboard
+GenericName=Akıllı Tahta ve Öğretmen Asistanı
+Comment=Öğretmenler için modern kura, sayaç, grup oluşturucu ve tahta araçları
+Exec=/bin/bash -c 'cd "$(dirname "$1")" && exec ./baslat.sh' dummy %k
+Icon=novaboard
+Terminal=false
+Categories=Education;Teaching;Utility;
+StartupNotify=false

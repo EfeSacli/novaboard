@@ -1,0 +1,25 @@
+# Derleme ve Geçici Dosyalar
+build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.spec
+
+# Kök dizindeki geçici ikili kopyalar (resmi sürümler surumler/ içinde saklanır)
+/*.exe
+/*.zip
+/*.deb
+GitHub_Yukle.vbs
+!surumler/
+!surumler/*
+
+# Kullanıcı Verileri ve İşletim Sistemi
+novaboard_verileri.json
+sorufelek_verileri.json
+*.log
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

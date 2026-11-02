@@ -1,0 +1,60 @@
+========================================================================
+NOVABOARD - AKILLI TAHTA & ÖĞRETMEN ASİSTANI
+========================================================================
+
+Novaboard, öğretmenlerin ders esnasında ihtiyaç duyduğu her şeyi bir araya getiren
+kapsamlı ve modern bir akıllı tahta masaüstü yazılımıdır:
+- Kayan Çekmece (Slide-out HUD) Kura Sistemi (Ekranın sağ üst kenarına gizlenir)
+- Tam Ekran Şeffaf Masaüstü Üzerinde Kareli Defter & Çöp Kovası Animasyonu
+- İngilizce 8-9. Sınıf B1 Seviyesi Süreli Kelime Yarışması & Turnuva Modu
+- Ders & Sınav Kronometresi (Geri Sayım Sayacı)
+- Rastgele Grup Oluşturucu (2 - 8 Grup)
+- Tahta Not Defteri ve Göz Yormayan Akıllı Tahta Renk Temaları
+
+------------------------------------------------------------------------
+1. KURULUM (ÖNERİLEN)
+------------------------------------------------------------------------
+"surumler/Novaboard-Windows-Kurulumlu-v1.0.exe" dosyasına çift tıklayınız:
+- Masaüstünüzde otomatik olarak "Novaboard" kısayolu oluşturulur.
+- Başlat menüsüne Novaboard eklenir.
+- Yönetici şifresi gerektirmeden kullanıcı alanına güvenle kurulur.
+- İleride istenirse Windows Ayarlar / Denetim Masası üzerinden tek tıkla 
+  kaldırılabilir (Uninstaller).
+
+* Görev Çubuğuna Sabitleme: Masaüstündeki "Novaboard" simgesine sağ tıklayıp 
+  "Görev çubuğuna sabitle" diyerek derslerde tek tıkla açabilirsiniz.
+
+------------------------------------------------------------------------
+2. TAŞINABİLİR (PORTABLE) KULLANIM
+------------------------------------------------------------------------
+Kurulum yapmadan doğrudan USB bellek üzerinden çalıştırmak isterseniz:
+- "Baslat_Windows.vbs" dosyasına çift tıklayabilir,
+- "surumler/Novaboard-Windows-Kurulumsuz-v1.0.exe" dosyasını veya
+- "surumler/Novaboard-Windows-Kurulumsuz-v1.0.zip" arşivini bir klasöre çıkartıp 
+  içindeki Novaboard.exe'yi doğrudan çalıştırabilirsiniz.
+
+------------------------------------------------------------------------
+3. WINDOWS DEFENDER / SMARTSCREEN UYARISI HAKKINDA
+------------------------------------------------------------------------
+Novaboard, öğretmenler için geliştirilmiş güvenli bir yazılımdır.
+Yıllık binlerce dolarlık ticari Microsoft sertifikası bulunmayan yeni 
+ve bağımsız eğitim programlarında Windows SmartScreen ilk açılışta 
+"Windows kişisel bilgisayarınızı korudu" veya "Bilinmeyen Yayımcı" 
+uyarısı verebilir.
+Uygulamayı açmak için:
+  1. Çıkan pencerede "Ek Bilgi" (More Info) yazısına tıklayınız.
+  2. Altta beliren "Yine de çalıştır" (Run Anyway) butonuna basınız.
+  (Veya doğrudan "Baslat_Windows.vbs" dosyasını kullanabilirsiniz.)
+
+------------------------------------------------------------------------
+4. DERS EKRANI VE KISAYOLLAR
+------------------------------------------------------------------------
+- Kayan Çekmece: Sol kenardaki "▶ NOVA" kulakçığına basarak çekmeceyi 
+  ekranın sağ kenarına kaydırıp küçültebilir, "◀ NOVA" tuşuyla geri açabilirsiniz.
+- Serbest Taşıma: Çekmece üzerindeki "✥ Taşı" alanından tutarak çekmeceyi ekranda 
+  istediğiniz yere sürükleyebilirsiniz; konumu otomatik kaydedilir.
+- KISAYOLLAR:
+  * SPACE (Boşluk) veya ENTER : Öğrenci Seçimi / Yeni Tur Başlatma
+  * CTRL + Z                  : Son Kura Seçimini Geri Al
+  * ESC                       : Animasyonu Geç / Yönetim Paneline Dönüş
+============================================================
