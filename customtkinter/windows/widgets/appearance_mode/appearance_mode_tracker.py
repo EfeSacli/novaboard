@@ -8,7 +8,7 @@ class AppearanceModeTracker:
     callback_list = []
     app_list = []
     update_loop_running = False
-    update_loop_interval = 30  # milliseconds
+    update_loop_interval = 1500  # milliseconds
 
     appearance_mode_set_by = "system"
     appearance_mode = 0  # Light (standard)
@@ -31,7 +31,7 @@ class AppearanceModeTracker:
             if app not in cls.app_list:
                 cls.app_list.append(app)
 
-                if not cls.update_loop_running:
+                if not cls.update_loop_running and cls.appearance_mode_set_by == "system":
                     app.after(cls.update_loop_interval, cls.update)
                     cls.update_loop_running = True
 
@@ -79,12 +79,15 @@ class AppearanceModeTracker:
 
     @classmethod
     def update(cls):
-        if cls.appearance_mode_set_by == "system":
-            new_appearance_mode = cls.detect_appearance_mode()
+        if cls.appearance_mode_set_by != "system":
+            cls.update_loop_running = False
+            return
 
-            if new_appearance_mode != cls.appearance_mode:
-                cls.appearance_mode = new_appearance_mode
-                cls.update_callbacks()
+        new_appearance_mode = cls.detect_appearance_mode()
+
+        if new_appearance_mode != cls.appearance_mode:
+            cls.appearance_mode = new_appearance_mode
+            cls.update_callbacks()
 
         # find an existing tkinter.Tk object for the next call of .after()
         for app in cls.app_list:

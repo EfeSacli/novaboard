@@ -369,14 +369,21 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
         )
         self.popover_frame.pack(fill="both", expand=True)
 
+    def _get_scaling(self):
+        try:
+            return ctk.ScalingTracker.get_window_scaling(self)
+        except Exception:
+            return 1.0
+
     def _setup_tooltip_window(self):
         self.tooltip_win = tk.Toplevel(self)
         self.tooltip_win.overrideredirect(True)
         self.tooltip_win.attributes("-topmost", True)
         self.tooltip_win.configure(bg="#0f172a")
+        px_font = max(11, int(round(12 * self._get_scaling() * getattr(ctk.ScalingTracker, "font_size_correction", 1.0))))
         self.tooltip_lbl = tk.Label(
             self.tooltip_win, text="", bg="#0f172a", fg="#f8fafc",
-            font=("Segoe UI", 9, "bold"), padx=8, pady=3, relief="solid", bd=1
+            font=("Segoe UI", -px_font, "bold"), padx=8, pady=3, relief="solid", bd=1
         )
         self.tooltip_lbl.pack()
         self.tooltip_win.withdraw()
@@ -388,7 +395,8 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
             txt = text_fn() if callable(text_fn) else str(text_fn)
             self.tooltip_lbl.configure(text=txt)
             self.tooltip_win.update_idletasks()
-            rx = self.winfo_rootx() + self.bar_width + 6
+            actual_bar_w = max(self.winfo_width(), int(round(self.bar_width * self._get_scaling())))
+            rx = self.winfo_rootx() + actual_bar_w + 6
             ry = widget.winfo_rooty() + 4
             self.tooltip_win.geometry(f"+{rx}+{ry}")
             self.tooltip_win.deiconify()
@@ -432,10 +440,15 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
             return
 
         self.apply_theme()
-        px = self.winfo_rootx() + self.bar_width + 6
-        if px + w > self._get_screen_width() - 10:
-            px = max(10, self.winfo_rootx() - w - 6)
-        py = max(10, min(self.winfo_screenheight() - h - 10, anchor_widget.winfo_rooty() - 6))
+        scale = self._get_scaling()
+        actual_bar_w = max(self.winfo_width(), int(round(self.bar_width * scale)))
+        actual_pop_w = int(round(w * scale))
+        actual_pop_h = int(round(h * scale))
+        gap = max(6, int(round(6 * scale)))
+        px = self.winfo_rootx() + actual_bar_w + gap
+        if px + actual_pop_w > self._get_screen_width() - 10:
+            px = max(10, self.winfo_rootx() - actual_pop_w - gap)
+        py = max(10, min(self.winfo_screenheight() - actual_pop_h - 10, anchor_widget.winfo_rooty() - 6))
         self.popover.geometry(f"{w}x{h}+{px}+{py}")
         self.popover.deiconify()
         self.popover.lift()
@@ -541,7 +554,7 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
                 corner_radius=6,
                 font=font(10, bold=True),
                 border_width=1,
-                command=lambda t=tid: (self.select_tool(t), self.close_popover()),
+                command=lambda t=tid: (self.close_popover(), self.select_tool(t)),
             )
             if idx == len(items) - 1:
                 b.grid(row=r, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
@@ -563,7 +576,7 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
                     corner_radius=5,
                     font=font(10, bold=True),
                     border_width=1,
-                    command=lambda m=mode: (self.set_board_mode(m), self.close_popover()),
+                    command=lambda m=mode: (self.close_popover(), self.set_board_mode(m)),
                 ),
                 BTN_ACCENT if is_cur else BTN_INNER,
             )
@@ -580,7 +593,7 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
                 corner_radius=5,
                 font=font(10, bold=True),
                 border_width=1,
-                command=lambda: (self.toggle_curtain(), self.close_popover()),
+                command=lambda: (self.close_popover(), self.toggle_curtain()),
             ),
             BTN_ACCENT if self.curtain_active else BTN_INNER,
         )
@@ -677,9 +690,16 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
         if sys.platform != "win32":
             # Linux/Pardus X11'de -transparentcolor desteklenmediği için yalnızca çizim/tahta aktifken göster
             if needs_input or has_board or self.curtain_active:
-                if not has_board and getattr(self, "_linux_bg_photo", None) is None:
+                sw = self._get_screen_width()
+                sh = self.winfo_screenheight()
+                if has_board:
+                    self.canvas.delete("linux_screen_bg")
+                    self._linux_bg_photo = None
+                elif getattr(self, "_linux_bg_photo", None) is None:
                     self._prepare_linux_transparent_bg()
+                self.draw_win.geometry(f"{sw}x{sh}+0+0")
                 self.draw_win.deiconify()
+                self.draw_win.lift()
             else:
                 self.draw_win.withdraw()
             self.input_win.withdraw()
@@ -700,16 +720,13 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
         self._ensure_topmost_lock()
 
     def _prepare_linux_transparent_bg(self):
-        """Linux/Pardus X11 üzerinde şeffaf ekran modunda masaüstü görüntüsünü arka plan olarak yakalar."""
+        """Linux/Pardus X11 üzerinde şeffaf ekran modunda masaüstü görüntüsünü hızlıca arka plan olarak yakalar."""
         try:
-            import io
-            from PIL import ImageGrab
+            from PIL import ImageGrab, ImageTk
             self.draw_win.withdraw()
             self.update_idletasks()
             grabbed = ImageGrab.grab()
-            buf = io.BytesIO()
-            grabbed.save(buf, format="PNG")
-            self._linux_bg_photo = tk.PhotoImage(data=buf.getvalue())
+            self._linux_bg_photo = ImageTk.PhotoImage(grabbed)
             self.canvas.delete("linux_screen_bg")
             self.canvas.create_image(0, 0, image=self._linux_bg_photo, anchor="nw", tags=("linux_screen_bg",))
             self.canvas.tag_lower("linux_screen_bg")
@@ -902,16 +919,23 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
     # SERBEST TAŞIMA VE EKRAN KONUMU (SOL KENAR DİKEY VARSAYILAN)
     # =========================================================================
     def _load_or_compute_position(self):
+        scale = self._get_scaling()
+        sw = self._get_screen_width()
+        sh = self.winfo_screenheight()
+        actual_w = int(round(self.bar_width * scale))
+        actual_h = int(round(self.expanded_height * scale))
         saved_x = self.dm.get_setting("pen_pos_x", None)
         saved_y = self.dm.get_setting("pen_pos_y", None)
         if saved_x is not None and saved_y is not None:
-            self.pos_x = int(saved_x)
-            self.pos_y = int(saved_y)
-            self._custom_pos_set = True
-        else:
-            self.pos_x = self.margin_left
-            self.pos_y = 60
-            self._custom_pos_set = False
+            sx, sy = int(saved_x), int(saved_y)
+            if 0 <= sx <= max(0, sw - actual_w) and 0 <= sy <= max(0, sh - actual_h):
+                self.pos_x = sx
+                self.pos_y = sy
+                self._custom_pos_set = True
+                return
+        self.pos_x = int(round(self.margin_left * scale))
+        self.pos_y = int(round(60 * scale))
+        self._custom_pos_set = False
 
     def _get_screen_width(self):
         try:
@@ -934,9 +958,12 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
     def _on_drag(self, event):
         if not self._is_dragging:
             return
+        scale = self._get_scaling()
         cur_h = self.collapsed_height if self._is_collapsed else self.expanded_height
-        new_x = max(0, min(self._get_screen_width() - self.bar_width, self._win_orig_x + event.x_root - self._drag_start_x))
-        new_y = max(0, min(self.winfo_screenheight() - cur_h, self._win_orig_y + event.y_root - self._drag_start_y))
+        actual_w = int(round(self.bar_width * scale))
+        actual_h = int(round(cur_h * scale))
+        new_x = max(0, min(self._get_screen_width() - actual_w, self._win_orig_x + event.x_root - self._drag_start_x))
+        new_y = max(0, min(self.winfo_screenheight() - actual_h, self._win_orig_y + event.y_root - self._drag_start_y))
 
         self.pos_x = new_x
         self.pos_y = new_y
@@ -1045,12 +1072,22 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
         elif hasattr(self, "tool_buttons") and "shapes" in self.tool_buttons:
             self.tool_buttons["shapes"].configure(image=self.icons["shapes"])
 
+        cur_spec = "arrow"
         if tool_id == "eraser":
-            self.input_win.configure(cursor="none")
+            cur_spec = "none" if sys.platform == "win32" else "circle"
         elif tool_id == "text":
-            self.input_win.configure(cursor="xterm")
+            cur_spec = "xterm"
         elif tool_id != "hand":
-            self.input_win.configure(cursor="tcross")
+            cur_spec = "tcross"
+
+        for target in (self.input_win, self.canvas):
+            try:
+                target.configure(cursor=cur_spec)
+            except Exception:
+                try:
+                    target.configure(cursor="tcross")
+                except Exception:
+                    pass
 
         if tool_id != "eraser":
             self._clear_eraser_cursor()
@@ -1124,10 +1161,16 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
     def _redraw_board_background(self):
         self.canvas.delete("board_bg")
         if self.board_mode == "Şeffaf Ekran":
+            self.canvas.configure(bg=TRANSPARENT_KEY)
             return
+
+        # Tahta arka planı aktifken Linux ekran görüntüsü katmanını temizle ki tahtanın üstünü örtmesin
+        self.canvas.delete("linux_screen_bg")
+        self._linux_bg_photo = None
 
         sw = self._get_screen_width()
         sh = self.winfo_screenheight()
+        scale = self._get_scaling()
 
         bg_map = {
             "Beyaz Tahta": "#f8fafc",
@@ -1137,21 +1180,26 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
             "Çizgili Tahta": "#fefce8",
         }
         bg_col = bg_map.get(self.board_mode, "#f8fafc")
+        self.canvas.configure(bg=bg_col)
         self.canvas.create_rectangle(0, 0, sw, sh, fill=bg_col, outline=bg_col, tags=("board_bg",))
 
         if self.board_mode == "Kareli Tahta":
-            step = 32
+            step = max(20, int(round(32 * scale)))
             for x in range(0, sw, step):
                 self.canvas.create_line(x, 0, x, sh, fill="#cbd5e1", width=1, tags=("board_bg",))
             for y in range(0, sh, step):
                 self.canvas.create_line(0, y, sw, y, fill="#cbd5e1", width=1, tags=("board_bg",))
         elif self.board_mode == "Çizgili Tahta":
-            step = 36
-            self.canvas.create_line(90, 0, 90, sh, fill="#fca5a5", width=2, tags=("board_bg",))
-            for y in range(60, sh, step):
+            step = max(24, int(round(36 * scale)))
+            margin_x = int(round(90 * scale))
+            self.canvas.create_line(margin_x, 0, margin_x, sh, fill="#fca5a5", width=2, tags=("board_bg",))
+            for y in range(int(round(60 * scale)), sh, step):
                 self.canvas.create_line(0, y, sw, y, fill="#93c5fd", width=1, tags=("board_bg",))
 
-        self.canvas.tag_lower("board_bg")
+        if self.canvas.find_withtag("stroke"):
+            self.canvas.tag_lower("board_bg", "stroke")
+        if self.canvas.find_withtag("curtain_layer"):
+            self.canvas.tag_raise("curtain_layer")
 
     def toggle_curtain(self):
         self.curtain_active = not self.curtain_active
@@ -1166,14 +1214,18 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
             return
         sw = self._get_screen_width()
         sh = self.winfo_screenheight()
-        cy = max(60, min(sh - 40, self.curtain_y))
+        scale = self._get_scaling()
+        cy = max(int(60 * scale), min(sh - int(40 * scale), self.curtain_y))
         self.canvas.create_rectangle(0, cy, sw, sh, fill="#0f172a", outline="#38bdf8", width=3, tags=("curtain_layer",))
+        hw = int(round(48 * scale))
+        hh = int(round(16 * scale))
         self.canvas.create_oval(
-            sw // 2 - 42, cy - 15, sw // 2 + 42, cy + 15,
+            sw // 2 - hw, cy - hh, sw // 2 + hw, cy + hh,
             fill="#0284c7", outline="#ffffff", width=2, tags=("curtain_layer",)
         )
+        px_f = max(10, int(round(11 * scale * getattr(ctk.ScalingTracker, "font_size_correction", 1.0))))
         self.canvas.create_text(
-            sw // 2, cy, text="PERDEYİ SÜRÜKLE", fill="#ffffff", font=("Segoe UI", 8, "bold"), tags=("curtain_layer",)
+            sw // 2, cy, text="PERDEYİ SÜRÜKLE", fill="#ffffff", font=("Segoe UI", -px_f, "bold"), tags=("curtain_layer",)
         )
 
     # =========================================================================
@@ -1227,7 +1279,7 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
         self.item_specs[item_id] = (itype, list(coords), dict(clean_opts))
         return item_id
 
-    def _add_subdivided_line(self, x1, y1, x2, y2, opts: dict, step_px: float = 4.0) -> list:
+    def _add_subdivided_line(self, x1, y1, x2, y2, opts: dict, step_px: float = 9.0) -> list:
         dx = x2 - x1
         dy = y2 - y1
         dist = math.hypot(dx, dy)
@@ -1321,6 +1373,8 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
 
         if self.current_tool in ("pen", "highlighter", "marker"):
             if self._last_x is not None and self._last_y is not None:
+                if math.hypot(event.x - self._last_x, event.y - self._last_y) < 2.5:
+                    return
                 w = self._effective_stroke_width()
                 cap = "projecting" if self.current_tool == "marker" else "round"
                 opts = {
@@ -1331,7 +1385,7 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
                 }
                 if self.current_tool == "highlighter":
                     opts["stipple"] = "gray50"
-                new_ids = self._add_subdivided_line(self._last_x, self._last_y, event.x, event.y, opts, step_px=4.0)
+                new_ids = self._add_subdivided_line(self._last_x, self._last_y, event.x, event.y, opts, step_px=9.0)
                 self.current_stroke_ids.extend(new_ids)
             self._last_x, self._last_y = event.x, event.y
             return
@@ -1448,10 +1502,12 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
 
     def _spawn_text_input(self, x, y):
         self._commit_active_text()
-        font_sz = max(14, int(self.current_width * 3.5))
+        scale = self._get_scaling()
+        font_sz = max(16, int(round(self.current_width * 4.2 * scale)))
+        target_win = self.draw_win if sys.platform != "win32" else self.input_win
         entry = tk.Entry(
-            self.input_win,
-            font=("Segoe UI", font_sz, "bold"),
+            target_win,
+            font=("Segoe UI", -font_sz, "bold"),
             fg=self.current_color if self.current_color != "#ffffff" else "#0f172a",
             bg="#ffffff",
             insertbackground="#0284c7",
@@ -1478,7 +1534,7 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
                     "text": txt,
                     "fill": self.current_color,
                     "anchor": "nw",
-                    "font": ("Segoe UI", font_sz, "bold"),
+                    "font": ("Segoe UI", -font_sz, "bold"),
                 }
                 item_id = self._register_canvas_item("text", [x, y], opts)
                 self.undo_stack.append(("draw", [self.item_specs[item_id]]))

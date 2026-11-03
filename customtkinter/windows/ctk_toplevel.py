@@ -96,8 +96,13 @@ class CTkToplevel(tkinter.Toplevel, CTkAppearanceModeBaseClass, CTkScalingBaseCl
 
     def _update_dimensions_event(self, event=None):
         if not self._block_update_dimensions_event:
+            if event is not None and event.widget is not self:
+                return
+
             detected_width = self.winfo_width()  # detect current window size
             detected_height = self.winfo_height()
+            if detected_width <= 10 or detected_height <= 10:
+                return
 
             if self._current_width != self._reverse_window_scaling(detected_width) or self._current_height != self._reverse_window_scaling(detected_height):
                 self._current_width = self._reverse_window_scaling(detected_width)  # adjust current size according to new size given by event

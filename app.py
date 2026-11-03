@@ -27,8 +27,8 @@ from screen_pen import ScreenPenHUD
 
 SCALE_MAP = {
     "Standart": 1.0,
-    "Büyük (Akıllı Tahta)": 1.15,
-    "Çok Büyük": 1.28,
+    "Büyük (Akıllı Tahta)": 1.10,
+    "Çok Büyük": 1.20,
 }
 
 
@@ -58,9 +58,11 @@ class NovaboardApp:
 
             ctk.CTkFont.__init__ = _custom_font_init
 
-        # 2. Arayüz ölçeğini ve temayı uygula
+        # 2. Arayüz ölçeğini ve temayı uygula (pencere ve bileşen ölçeği senkronize)
         scale_choice = self.dm.get_setting("font_size_scale", "Standart")
-        ctk.set_widget_scaling(SCALE_MAP.get(scale_choice, 1.0))
+        user_scale = SCALE_MAP.get(scale_choice, 1.0)
+        ctk.set_widget_scaling(user_scale)
+        ctk.set_window_scaling(user_scale)
         ctk.set_appearance_mode(self.theme_mgr.get_theme()["appearance_mode"])
         ctk.set_default_color_theme("blue")
 

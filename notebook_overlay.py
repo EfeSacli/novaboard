@@ -29,26 +29,17 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
         self.geometry(f"{screen_w}x{screen_h}+0+0")
 
         self.transparent_key = "#000001"
-        self._linux_bg_photo = None
         if sys.platform == "win32":
             try:
                 self.attributes("-transparentcolor", self.transparent_key)
             except Exception:
                 pass
         else:
+            self.transparent_key = "#0f172a"
             try:
-                import io
-                from PIL import ImageGrab
-                grabbed = ImageGrab.grab()
-                buf = io.BytesIO()
-                grabbed.save(buf, format="PNG")
-                self._linux_bg_photo = tk.PhotoImage(data=buf.getvalue())
+                self.attributes("-alpha", 0.92)
             except Exception:
-                self.transparent_key = "#0f172a"
-                try:
-                    self.attributes("-alpha", 0.94)
-                except Exception:
-                    pass
+                pass
         self.configure(fg_color=self.transparent_key)
 
         self.canvas = tk.Canvas(self, width=screen_w, height=screen_h, bg=self.transparent_key, highlightthickness=0)
@@ -56,21 +47,23 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
 
         self.screen_w = screen_w
         self.screen_h = screen_h
+        self.res_scale = max(0.75, min(2.5, min(screen_w / 1920.0, screen_h / 1080.0)))
+        self.font_corr = getattr(ctk.ScalingTracker, "font_size_correction", 1.0)
 
-        # Defter boyutları ve hedef konumu
-        self.paper_w = min(1140, max(840, int(screen_w * 0.78)))
-        self.paper_h = min(680, max(500, int(screen_h * 0.70)))
+        # Defter boyutları ve hedef konumu (ekran boyutuna göre otomatik oranlanır)
+        self.paper_w = int(min(1140 * self.res_scale, max(640 * self.res_scale, screen_w * 0.76)))
+        self.paper_h = int(min(680 * self.res_scale, max(420 * self.res_scale, screen_h * 0.68)))
         self.target_paper_x = (screen_w - self.paper_w) // 2
         self.target_paper_y = (screen_h - self.paper_h) // 2
         self.paper_x = self.target_paper_x
-        self.paper_y = self.target_paper_y - 90
+        self.paper_y = self.target_paper_y - int(90 * self.res_scale)
 
         # Çöp kovası boyutları ve hedef konumu
-        self.bin_w = 175
-        self.bin_h = 215
-        self.bin_target_x = screen_w - self.bin_w - 75
-        self.bin_target_y = screen_h - self.bin_h - 40
-        self.bin_current_y = screen_h + 80
+        self.bin_w = int(175 * self.res_scale)
+        self.bin_h = int(215 * self.res_scale)
+        self.bin_target_x = screen_w - self.bin_w - int(75 * self.res_scale)
+        self.bin_target_y = screen_h - self.bin_h - int(40 * self.res_scale)
+        self.bin_current_y = screen_h + int(80 * self.res_scale)
         self.bin_bounce = 0
 
         self.particles = []
@@ -135,11 +128,15 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
                 "char": random.choice(["✦", "★", "•"]),
             })
 
+    def _cfont(self, pt_size: int, bold: bool = True):
+        px = max(10, int(round(pt_size * 1.33 * self.res_scale * self.font_corr)))
+        return ("Segoe UI", -px, "bold") if bold else ("Segoe UI", -px)
+
     def _draw_particle_list(self, particle_list):
         for p in particle_list:
             if p["life"] > 0:
                 self.canvas.create_text(
-                    p["x"], p["y"], text=p["char"], font=("Segoe UI", p["size"], "bold"), fill=p["color"]
+                    p["x"], p["y"], text=p["char"], font=self._cfont(p["size"], bold=True), fill=p["color"]
                 )
 
     # =========================================================================
@@ -147,9 +144,8 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
     # =========================================================================
     def _draw_scene(self):
         self.canvas.delete("all")
-        if self._linux_bg_photo is not None:
-            self.canvas.create_image(0, 0, image=self._linux_bg_photo, anchor="nw")
         sw = self.screen_w
+        s = self.res_scale
 
         if self.phase in ("paper_enter", "display", "bin_in"):
             self._draw_notebook_paper(self.paper_x, self.paper_y, self.paper_w, self.paper_h)
@@ -168,65 +164,74 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
             self._draw_particle_list(self.splash_particles)
 
         # Sağ üst köşe atlama butonu
-        self.canvas.create_rectangle(sw - 204, 16, sw - 20, 50, fill="#1e293b", outline="#475569", width=1.5)
-        self.canvas.create_text(sw - 112, 33, text="✕ Geç / Kapat (ESC)", font=("Segoe UI", 10, "bold"), fill="#f8fafc")
+        btn_w, btn_h = int(190 * s), int(34 * s)
+        bx1, by1 = sw - btn_w - int(20 * s), int(16 * s)
+        self.canvas.create_rectangle(bx1, by1, bx1 + btn_w, by1 + btn_h, fill="#1e293b", outline="#475569", width=1.5)
+        self.canvas.create_text(bx1 + btn_w // 2, by1 + btn_h // 2, text="✕ Geç / Kapat (ESC)", font=self._cfont(10), fill="#f8fafc")
 
     def _draw_notebook_paper(self, px, py, pw, ph):
         px, py, pw, ph = int(px), int(py), int(pw), int(ph)
+        s = self.res_scale
 
         for off_x, off_y, col in [(16, 16, "#0f172a"), (12, 12, "#1e293b"), (8, 8, "#334155"), (4, 4, "#475569")]:
-            self.canvas.create_rectangle(px + off_x, py + off_y, px + pw + off_x, py + ph + off_y, fill=col, outline="")
+            ox, oy = int(off_x * s), int(off_y * s)
+            self.canvas.create_rectangle(px + ox, py + oy, px + pw + ox, py + ph + oy, fill=col, outline="")
 
         self.canvas.create_rectangle(px, py, px + pw, py + ph, fill="#fdfcf7", outline="#cbd5e1", width=2)
 
-        for hy in (py + 80, py + ph // 2, py + ph - 80):
-            self.canvas.create_oval(px + 20, hy - 12, px + 48, hy + 12, fill=self.transparent_key, outline="#94a3b8", width=2)
-            self.canvas.create_line(px + 10, hy, px + 28, hy, fill="#64748b", width=3)
+        for hy in (py + int(80 * s), py + ph // 2, py + ph - int(80 * s)):
+            self.canvas.create_oval(
+                px + int(20 * s), hy - int(12 * s), px + int(48 * s), hy + int(12 * s),
+                fill=self.transparent_key, outline="#94a3b8", width=2
+            )
+            self.canvas.create_line(px + int(10 * s), hy, px + int(28 * s), hy, fill="#64748b", width=3)
 
-        self.canvas.create_line(px + 58, py + 8, px + 58, py + ph - 8, fill="#94a3b8", dash=(4, 5), width=1.5)
+        self.canvas.create_line(px + int(58 * s), py + int(8 * s), px + int(58 * s), py + ph - int(8 * s), fill="#94a3b8", dash=(4, 5), width=1.5)
 
-        margin_x = px + 76
+        margin_x = px + int(76 * s)
         self.canvas.create_line(margin_x, py, margin_x, py + ph, fill="#ef4444", width=2.5)
-        self.canvas.create_line(margin_x + 3, py, margin_x + 3, py + ph, fill="#fca5a5", width=1.0)
+        self.canvas.create_line(margin_x + int(3 * s), py, margin_x + int(3 * s), py + ph, fill="#fca5a5", width=1.0)
 
-        grid_step = 22
-        for gx in range(margin_x + grid_step, px + pw - 12, grid_step):
-            self.canvas.create_line(gx, py + 14, gx, py + ph - 14, fill="#e2e8f0", width=1)
-        for gy in range(py + 26, py + ph - 14, grid_step):
-            self.canvas.create_line(margin_x, gy, px + pw - 12, gy, fill="#e2e8f0", width=1)
+        grid_step = max(16, int(24 * s))
+        for gx in range(margin_x + grid_step, px + pw - int(12 * s), grid_step):
+            self.canvas.create_line(gx, py + int(14 * s), gx, py + ph - int(14 * s), fill="#e2e8f0", width=1)
+        for gy in range(py + int(26 * s), py + ph - int(14 * s), grid_step):
+            self.canvas.create_line(margin_x, gy, px + pw - int(12 * s), gy, fill="#e2e8f0", width=1)
 
         today_str = datetime.now().strftime("%d.%m.%Y")
         self.canvas.create_text(
-            px + pw - 24, py + 22, text=f"✦ {self.class_name.upper()} • {today_str} ✦",
-            font=("Segoe UI", 10, "bold"), fill="#64748b", anchor="e",
+            px + pw - int(24 * s), py + int(22 * s), text=f"✦ {self.class_name.upper()} • {today_str} ✦",
+            font=self._cfont(10), fill="#64748b", anchor="e",
         )
         self.canvas.create_text(
-            margin_x + 16, py + 22, text="📓 DERS İÇİ SORU & ETKİNLİK DEFTERİ",
-            font=("Segoe UI", 9, "bold"), fill="#94a3b8", anchor="w",
+            margin_x + int(16 * s), py + int(22 * s), text="📓 DERS İÇİ SORU & ETKİNLİK DEFTERİ",
+            font=self._cfont(9), fill="#94a3b8", anchor="w",
         )
 
         name_center_x = (margin_x + px + pw) // 2
-        name_center_y = py + (ph // 2) - 15
+        name_center_y = py + (ph // 2) - int(15 * s)
         name_len = len(self.student_name)
-        font_size = 58 if name_len <= 12 else (46 if name_len <= 20 else 36)
+        font_size = 54 if name_len <= 12 else (42 if name_len <= 20 else 32)
 
         self.canvas.create_text(
             name_center_x + 2, name_center_y + 2, text=self.student_name,
-            font=("Segoe UI", font_size, "bold"), fill="#94a3b8",
+            font=self._cfont(font_size), fill="#94a3b8",
         )
         self.canvas.create_text(
             name_center_x, name_center_y, text=self.student_name,
-            font=("Segoe UI", font_size, "bold"), fill="#0f172a",
+            font=self._cfont(font_size), fill="#0f172a",
         )
 
-        badge_y = name_center_y + font_size // 2 + 34
+        badge_y = name_center_y + int((font_size // 2 + 34) * s)
+        bw_half = int(175 * s)
+        bh_half = int(16 * s)
         self.canvas.create_rectangle(
-            name_center_x - 170, badge_y - 16, name_center_x + 170, badge_y + 16,
+            name_center_x - bw_half, badge_y - bh_half, name_center_x + bw_half, badge_y + bh_half,
             fill="#0369a1", outline="#38bdf8", width=2,
         )
         self.canvas.create_text(
             name_center_x, badge_y, text="🎯 Sıradaki Soru Bu Öğrencimizde 🎯",
-            font=("Segoe UI", 11, "bold"), fill="#ffffff",
+            font=self._cfont(11), fill="#ffffff",
         )
 
     def _draw_crumpling_paper(self):
@@ -298,9 +303,9 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
             self.canvas.create_line(bx + inset * ratio, ly, bx + bw - inset * ratio, ly, fill="#334155", width=1.5)
 
         center_x = bx + bw // 2
-        center_y = by + bh // 2 + 10
-        self.canvas.create_text(center_x, center_y, text="♻", font=("Segoe UI", 34), fill="#38bdf8")
-        self.canvas.create_text(center_x, center_y + 38, text="NOVABOARD", font=("Segoe UI", 8, "bold"), fill="#94a3b8")
+        center_y = by + bh // 2 + int(10 * self.res_scale)
+        self.canvas.create_text(center_x, center_y, text="♻", font=self._cfont(32, bold=False), fill="#38bdf8")
+        self.canvas.create_text(center_x, center_y + int(38 * self.res_scale), text="NOVABOARD", font=self._cfont(8), fill="#94a3b8")
 
         self.canvas.create_oval(bx, by, bx + bw, by + 40, fill="#020617", outline="#94a3b8", width=3)
         self.canvas.create_arc(bx + 4, by + 2, bx + bw - 4, by + 38, start=180, extent=180, style="arc", outline="#f8fafc", width=2)

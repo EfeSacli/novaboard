@@ -49,8 +49,6 @@ PYINSTALLER_COMMON_ARGS = [
     "--hidden-import=PIL.ImageDraw",
     "--hidden-import=PIL.ImageTk",
     "--hidden-import=PIL.ImageGrab",
-    "--exclude-module=numpy",
-    "--exclude-module=cv2",
     "--hidden-import=encodings",
     "--collect-all=encodings",
     "--clean",

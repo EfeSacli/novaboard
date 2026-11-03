@@ -120,7 +120,15 @@ def set_window_icon(window, default=False):
 
 def center_window(window, width, height):
     sw, sh = window.winfo_screenwidth(), window.winfo_screenheight()
-    window.geometry(f"{width}x{height}+{(sw - width) // 2}+{(sh - height) // 2}")
+    try:
+        scale = ctk.ScalingTracker.get_window_scaling(window)
+    except Exception:
+        scale = 1.0
+    actual_w = int(round(width * scale))
+    actual_h = int(round(height * scale))
+    x = max(0, (sw - actual_w) // 2)
+    y = max(0, (sh - actual_h) // 2)
+    window.geometry(f"{width}x{height}+{x}+{y}")
 
 
 def paste_into_widget(widget):

@@ -11,9 +11,10 @@ class ScalingTracker:
 
     widget_scaling = 1  # user values which multiply to detected window scaling factor
     window_scaling = 1
+    font_size_correction = 1.0  # Linux/Pardus X11 font metric & DPI normalization factor
 
     update_loop_running = False
-    update_loop_interval = 100  # ms
+    update_loop_interval = 1000  # ms
     loop_pause_after_new_scaling = 1500  # ms
 
     @classmethod
@@ -79,8 +80,8 @@ class ScalingTracker:
         if window_root not in cls.window_dpi_scaling_dict:
             cls.window_dpi_scaling_dict[window_root] = cls.get_window_dpi_scaling(window_root)
 
-        if not cls.update_loop_running:
-            window_root.after(100, cls.check_dpi_scaling)
+        if sys.platform.startswith("win") and not cls.update_loop_running:
+            window_root.after(cls.update_loop_interval, cls.check_dpi_scaling)
             cls.update_loop_running = True
 
     @classmethod
@@ -150,22 +151,40 @@ class ScalingTracker:
     @classmethod
     def get_window_dpi_scaling(cls, window) -> float:
         if not cls.deactivate_automatic_dpi_awareness:
+            # Referans tasarım: 1920x1080 ekranda 1.25 (%125) ölçek oranlaması
+            res_scale = 1.25
+            try:
+                sw = window.winfo_screenwidth()
+                sh = window.winfo_screenheight()
+                if sw > 0 and sh > 0:
+                    res_scale = max(0.80, min(3.0, 1.25 * min(sw / 1920.0, sh / 1080.0)))
+            except Exception:
+                res_scale = 1.25
+
             if sys.platform == "darwin":
                 return 1  # scaling works automatically on macOS
 
             elif sys.platform.startswith("win"):
-                from ctypes import windll, pointer, wintypes
+                try:
+                    from ctypes import windll, pointer, wintypes
 
-                DPI100pc = 96  # DPI 96 is 100% scaling
-                DPI_type = 0  # MDT_EFFECTIVE_DPI = 0, MDT_ANGULAR_DPI = 1, MDT_RAW_DPI = 2
-                window_hwnd = wintypes.HWND(window.winfo_id())
-                monitor_handle = windll.user32.MonitorFromWindow(window_hwnd, wintypes.DWORD(2))  # MONITOR_DEFAULTTONEAREST = 2
-                x_dpi, y_dpi = wintypes.UINT(), wintypes.UINT()
-                windll.shcore.GetDpiForMonitor(monitor_handle, DPI_type, pointer(x_dpi), pointer(y_dpi))
-                return (x_dpi.value + y_dpi.value) / (2 * DPI100pc)
+                    DPI100pc = 96  # DPI 96 is 100% scaling
+                    DPI_type = 0  # MDT_EFFECTIVE_DPI = 0, MDT_ANGULAR_DPI = 1, MDT_RAW_DPI = 2
+                    window_hwnd = wintypes.HWND(window.winfo_id())
+                    monitor_handle = windll.user32.MonitorFromWindow(window_hwnd, wintypes.DWORD(2))  # MONITOR_DEFAULTTONEAREST = 2
+                    x_dpi, y_dpi = wintypes.UINT(), wintypes.UINT()
+                    windll.shcore.GetDpiForMonitor(monitor_handle, DPI_type, pointer(x_dpi), pointer(y_dpi))
+                    win_dpi_scale = (x_dpi.value + y_dpi.value) / (2 * DPI100pc)
+                    if win_dpi_scale <= 0:
+                        win_dpi_scale = res_scale
+                except Exception:
+                    win_dpi_scale = res_scale
+
+                return round(max(win_dpi_scale, res_scale), 2)
 
             else:
-                return 1  # DPI awareness on Linux not implemented
+                # Linux / Pardus (Akıllı Tahta ve PC ekran boyutuna göre 1920x1080 @ 1.25 bazlı otomatik oranlama)
+                return round(res_scale, 2)
         else:
             return 1
 

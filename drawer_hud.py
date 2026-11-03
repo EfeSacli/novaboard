@@ -238,16 +238,23 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
     # SERBEST TAŞIMA VE EKRAN KONUMU
     # =========================================================================
     def _load_or_compute_position(self, width_dp):
+        scale = self._get_scaling()
+        sw = self._get_screen_width()
+        sh = self.winfo_screenheight()
+        actual_w = int(round(width_dp * scale))
+        actual_h = int(round(self.panel_height * scale))
         saved_x = self.dm.get_setting("drawer_pos_x", None)
         saved_y = self.dm.get_setting("drawer_pos_y", None)
         if saved_x is not None and saved_y is not None:
-            self.pos_x = int(saved_x)
-            self.pos_y = int(saved_y)
-            self._custom_pos_set = True
-        else:
-            self.pos_y = 20
-            self.pos_x = self._get_x_for_width(width_dp)
-            self._custom_pos_set = False
+            sx, sy = int(saved_x), int(saved_y)
+            if 0 <= sx <= max(0, sw - actual_w) and 0 <= sy <= max(0, sh - actual_h):
+                self.pos_x = sx
+                self.pos_y = sy
+                self._custom_pos_set = True
+                return
+        self.pos_y = int(round(20 * scale))
+        self.pos_x = self._get_x_for_width(width_dp)
+        self._custom_pos_set = False
 
     def _start_drag(self, event):
         self._drag_start_x = event.x_root
@@ -259,9 +266,12 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
     def _on_drag(self, event):
         if not self._is_dragging:
             return
+        scale = self._get_scaling()
         cur_w = self.collapsed_width if self._is_collapsed else self.full_width
-        new_x = max(0, min(self._get_screen_width() - cur_w, self._win_orig_x + event.x_root - self._drag_start_x))
-        new_y = max(0, min(self.winfo_screenheight() - self.panel_height, self._win_orig_y + event.y_root - self._drag_start_y))
+        actual_w = int(round(cur_w * scale))
+        actual_h = int(round(self.panel_height * scale))
+        new_x = max(0, min(self._get_screen_width() - actual_w, self._win_orig_x + event.x_root - self._drag_start_x))
+        new_y = max(0, min(self.winfo_screenheight() - actual_h, self._win_orig_y + event.y_root - self._drag_start_y))
 
         self.pos_x = new_x
         self.pos_y = new_y
@@ -323,13 +333,14 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
         if self._is_collapsed:
             self.content_panel.pack_forget()
 
-        anchor_right = self.pos_x + start_w
+        scale = self._get_scaling()
+        anchor_right = self.pos_x + int(round(start_w * scale))
 
         def _place_at_width(w):
             if not self._custom_pos_set:
                 self.pos_x = self._get_x_for_width(w)
             else:
-                self.pos_x = max(0, anchor_right - w)
+                self.pos_x = max(0, anchor_right - int(round(w * scale)))
             self.geometry(f"{w}x{self.panel_height}+{self.pos_x}+{self.pos_y}")
 
         def _step_anim():

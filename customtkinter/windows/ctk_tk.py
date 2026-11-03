@@ -38,6 +38,7 @@ class CTk(CTK_PARENT_CLASS, CTkAppearanceModeBaseClass, CTkScalingBaseClass):
 
         # call init methods of super classes
         CTK_PARENT_CLASS.__init__(self, **pop_from_dict_by_set(kwargs, self._valid_tk_constructor_arguments))
+        self._calibrate_display_font_scaling()
         CTkAppearanceModeBaseClass.__init__(self)
         CTkScalingBaseClass.__init__(self, scaling_type="window")
         check_kwargs_empty(kwargs, raise_error=True)
@@ -85,6 +86,33 @@ class CTk(CTK_PARENT_CLASS, CTkAppearanceModeBaseClass, CTkScalingBaseClass):
                 event.widget.focus_set()
         self.bind_all("<Button-1>", set_focus, add=True)
 
+    def _calibrate_display_font_scaling(self):
+        """
+        65 inç akıllı tahtalarda (EDID fiziksel boyutu 1428x804 mm) X11 'tk scaling' değerini
+         ~0.47 olarak hesaplarken Xft (libXft) 96-144 DPI kullanır ve tüm yazıların kutulara göre
+        2.5x-3x devasa büyümesine yol açar. Bu metot tk scaling değerini ve font_size_correction
+        çarpanını gerçek piksel yüksekliğine ve genişliğine birebir kalibre eder.
+        """
+        try:
+            self.tk.call("tk", "scaling", 96.0 / 72.0)
+            if not sys.platform.startswith("win") and sys.platform != "darwin":
+                import tkinter.font as tkfont
+                from .widgets.scaling import ScalingTracker
+                test_font = tkfont.Font(root=self, family="TkDefaultFont", size=-100, weight="bold")
+                linespace = test_font.metrics("linespace")
+                if linespace > 142 or (0 < linespace < 95):
+                    cur_scale = float(self.tk.call("tk", "scaling"))
+                    calibrated = cur_scale * (linespace / 128.0)
+                    self.tk.call("tk", "scaling", max(0.5, min(6.0, calibrated)))
+                    test_font = tkfont.Font(root=self, family="TkDefaultFont", size=-100, weight="bold")
+                    linespace = test_font.metrics("linespace")
+                text_w = test_font.measure("Öğrenci Seçimi Kalem Panel")
+                h_ratio = 133.0 / linespace if linespace > 0 else 1.0
+                w_ratio = 1308.0 / text_w if text_w > 0 else 1.0
+                ScalingTracker.font_size_correction = max(0.35, min(1.10, min(h_ratio, w_ratio)))
+        except Exception:
+            pass
+
     def destroy(self):
         self._disable_macos_dark_title_bar()
 
@@ -100,12 +128,13 @@ class CTk(CTK_PARENT_CLASS, CTkAppearanceModeBaseClass, CTkScalingBaseClass):
 
     def _update_dimensions_event(self, event=None):
         if not self._block_update_dimensions_event:
+            if event is not None and event.widget is not self:
+                return
 
             detected_width = super().winfo_width()  # detect current window size
             detected_height = super().winfo_height()
-
-            # detected_width = event.width
-            # detected_height = event.height
+            if detected_width <= 10 or detected_height <= 10:
+                return
 
             if self._current_width != self._reverse_window_scaling(detected_width) or self._current_height != self._reverse_window_scaling(detected_height):
                 self._current_width = self._reverse_window_scaling(detected_width)  # adjust current size according to new size given by event
@@ -198,13 +227,13 @@ class CTk(CTK_PARENT_CLASS, CTkAppearanceModeBaseClass, CTkScalingBaseClass):
 
     def geometry(self, geometry_string: str = None):
         if geometry_string is not None:
-            super().geometry(self._apply_geometry_scaling(geometry_string))
-
-            # update width and height attributes
+            # update width and height attributes first and release temporary min/max lock
             width, height, x, y = self._parse_geometry_string(geometry_string)
             if width is not None and height is not None:
                 self._current_width = max(self._min_width, min(width, self._max_width))  # bound value between min and max
                 self._current_height = max(self._min_height, min(height, self._max_height))
+            self._set_scaled_min_max()
+            super().geometry(self._apply_geometry_scaling(geometry_string))
         else:
             return self._reverse_geometry_scaling(super().geometry())
 

@@ -87,19 +87,20 @@ class CTkScalingBaseClass:
     def _apply_font_scaling(self, font: Union[Tuple, CTkFont]) -> tuple:
         """ Takes CTkFont object and returns tuple font with scaled size, has to be called again for every change of font object """
         assert self.__scaling_type == "widget"
+        eff_scale = self.__widget_scaling * getattr(ScalingTracker, "font_size_correction", 1.0)
 
         if type(font) == tuple:
             if len(font) == 1:
                 return font
             elif len(font) == 2:
-                return font[0], -abs(round(font[1] * self.__widget_scaling))
+                return font[0], -abs(round(font[1] * eff_scale))
             elif 3 <= len(font) <= 6:
-                return font[0], -abs(round(font[1] * self.__widget_scaling)), font[2:]
+                return font[0], -abs(round(font[1] * eff_scale)), font[2:]
             else:
                 raise ValueError(f"Can not scale font {font}. font needs to be tuple of len 1, 2 or 3")
 
         elif isinstance(font, CTkFont):
-            return font.create_scaled_tuple(self.__widget_scaling)
+            return font.create_scaled_tuple(eff_scale)
         else:
             raise ValueError(f"Can not scale font '{font}' of type {type(font)}. font needs to be tuple or instance of CTkFont")
 

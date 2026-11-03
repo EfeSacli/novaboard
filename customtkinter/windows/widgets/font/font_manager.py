@@ -55,7 +55,12 @@ class FontManager:
         # Linux
         elif sys.platform.startswith("linux"):
             try:
-                shutil.copy(font_path, os.path.expanduser(cls.linux_font_path))
+                for font_dir in ("~/.local/share/fonts/", cls.linux_font_path):
+                    dest_dir = os.path.expanduser(font_dir)
+                    os.makedirs(dest_dir, exist_ok=True)
+                    dest_file = os.path.join(dest_dir, os.path.basename(font_path))
+                    if not os.path.exists(dest_file):
+                        shutil.copy(font_path, dest_file)
                 return True
             except Exception as err:
                 sys.stderr.write("FontManager error: " + str(err) + "\n")
