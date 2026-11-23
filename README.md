@@ -28,16 +28,16 @@
 
 ---
 
-## 🚀 İndirme ve Kurulum Seçenekleri (`surumler/v1.2.1/`)
+## 🚀 İndirme ve Kurulum Seçenekleri (`surumler/v1.2.2/`)
 
-### 🪟 1. Windows (10 / 11) Sürümleri (Son Sürüm: v1.2.1)
-* 📦 **[Novaboard Windows Kurulumlu v1.2.1 (.exe)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.1/Novaboard-Windows-Kurulumlu-v1.2.1.exe)** — Otomatik kurulum sihirbazı, masaüstü ve başlat menüsü kısayolu.
-* ⚡ **[Novaboard Windows Kurulumsuz Tek Dosya v1.2.1 (.exe)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.1/Novaboard-Windows-Kurulumsuz-v1.2.1.exe)** — Kurulum gerektirmeden doğrudan tek tıkla çalışan taşınabilir `.exe`.
-* 🗂️ **[Novaboard Windows Kurulumsuz Hazır Klasör v1.2.1 (.zip)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.1/Novaboard-Windows-Kurulumsuz-v1.2.1.zip)** — Zipten çıkartıp doğrudan çalıştırılabilen hazır klasör paketi.
+### 🪟 1. Windows (10 / 11) Sürümleri (Son Sürüm: v1.2.2)
+* 📦 **[Novaboard Windows Kurulumlu v1.2.2 (.exe)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.2/Novaboard-Windows-Kurulumlu-v1.2.2.exe)** — Otomatik kurulum sihirbazı, masaüstü ve başlat menüsü kısayolu.
+* ⚡ **[Novaboard Windows Kurulumsuz Tek Dosya v1.2.2 (.exe)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.2/Novaboard-Windows-Kurulumsuz-v1.2.2.exe)** — Kurulum gerektirmeden doğrudan tek tıkla çalışan taşınabilir `.exe`.
+* 🗂️ **[Novaboard Windows Kurulumsuz Hazır Klasör v1.2.2 (.zip)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.2/Novaboard-Windows-Kurulumsuz-v1.2.2.zip)** — Zipten çıkartıp doğrudan çalıştırılabilen hazır klasör paketi.
 
-### 🐧 2. Pardus ETAP / Linux (MEB Fatih Akıllı Tahta) Sürümleri (Son Sürüm: v1.2.1)
-* 🐧 **[Novaboard Pardus Kurulumlu v1.2.1 (.deb)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.1/Novaboard-Pardus-Kurulumlu-v1.2.1.deb)** — Pardus Paket Kurucu ile tek tıkla sisteme kurulan resmi `.deb` paketi.
-* 📦 **[Novaboard Pardus Kurulumsuz v1.2.1 (.zip)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.1/Novaboard-Pardus-Kurulumsuz-v1.2.1.zip)** — Yönetici şifresi gerektirmeden `baslat.sh` veya `kurulum_pardus.sh` ile çalışan kurulumsuz Pardus paketi.
+### 🐧 2. Pardus ETAP / Linux (MEB Fatih Akıllı Tahta) Sürümleri (Son Sürüm: v1.2.2)
+* 🐧 **[Novaboard Pardus Kurulumlu v1.2.2 (.deb)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.2/Novaboard-Pardus-Kurulumlu-v1.2.2.deb)** — Pardus Paket Kurucu ile tek tıkla sisteme kurulan resmi `.deb` paketi.
+* 📦 **[Novaboard Pardus Kurulumsuz v1.2.2 (.zip)](https://github.com/EfeSacli/novaboard/releases/download/v1.2.2/Novaboard-Pardus-Kurulumsuz-v1.2.2.zip)** — Yönetici şifresi gerektirmeden `baslat.sh` veya `kurulum_pardus.sh` ile çalışan kurulumsuz Pardus paketi.
 
 ---
 

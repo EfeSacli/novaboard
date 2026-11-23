@@ -2,7 +2,7 @@
 ; Geliştirici: Efe Saçlı
 
 #define MyAppName "Novaboard"
-#define MyAppVersion "1.2.1"
+#define MyAppVersion "1.2.2"
 #define MyAppPublisher "Efe Saçlı"
 #define MyAppExeName "Novaboard.exe"
 
@@ -18,8 +18,8 @@ VersionInfoCompany=Efe Saçlı
 VersionInfoCopyright=Copyright (C) 2026 Efe Saçlı
 VersionInfoDescription=Novaboard Kurulum (Geliştirici: Efe Saçlı)
 VersionInfoProductName=Novaboard
-VersionInfoProductVersion=1.2.1.0
-VersionInfoVersion=1.2.1.0
+VersionInfoProductVersion=1.2.2.0
+VersionInfoVersion=1.2.2.0
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes

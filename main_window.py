@@ -80,13 +80,16 @@ class MainWindow(ThemedMixin, ctk.CTk):
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(2, weight=1)
 
+        app_title = self.dm.get_setting("app_custom_title", "Novaboard") or "Novaboard"
+        app_subtitle = self.dm.get_setting("app_custom_subtitle", "Sınıf Yönetimi") or "Sınıf Yönetimi"
+
         self.logo_label = self.styled(
-            ctk.CTkLabel(self.sidebar_frame, text="Novaboard", font=font(22, bold=True)), TEXT_PRIMARY
+            ctk.CTkLabel(self.sidebar_frame, text=app_title, font=font(22, bold=True)), TEXT_PRIMARY
         )
         self.logo_label.grid(row=0, column=0, padx=16, pady=(16, 2), sticky="w")
 
         self.subtitle_label = self.styled(
-            ctk.CTkLabel(self.sidebar_frame, text="Sınıf Yönetimi", font=font(11)), TEXT_SECONDARY
+            ctk.CTkLabel(self.sidebar_frame, text=app_subtitle, font=font(11)), TEXT_SECONDARY
         )
         self.subtitle_label.grid(row=1, column=0, padx=16, pady=(0, 12), sticky="w")
 
@@ -444,23 +447,223 @@ class MainWindow(ThemedMixin, ctk.CTk):
         self.font_scale_menu.pack(side="left", padx=6, pady=10)
 
         # Animasyon ve Ses
-        self.anim_section_title, self.anim_bar = self._add_settings_section("Animasyon ve Ses", bottom_pad=20)
+        self.anim_section_title, self.anim_bar = self._add_settings_section("Animasyon ve Ses Ayarları")
+
+        anim_row1 = ctk.CTkFrame(self.anim_bar, fg_color="transparent")
+        anim_row1.pack(fill="x", padx=14, pady=(10, 4))
 
         self.paper_anim_switch = self.styled(
-            ctk.CTkSwitch(self.anim_bar, text="Geçiş Animasyonları", font=font(11), command=self._toggle_paper_anim),
+            ctk.CTkSwitch(anim_row1, text="Kura Defter & Çöp Kovası Animasyonları", font=font(11, bold=True), command=self._toggle_paper_anim),
             TEXT_PRIMARY,
         )
         if self.dm.get_setting("paper_animation_enabled", True):
             self.paper_anim_switch.select()
-        self.paper_anim_switch.pack(padx=14, pady=(12, 6), anchor="w")
+        self.paper_anim_switch.pack(side="left", padx=(0, 18))
 
         self.sound_switch = self.styled(
-            ctk.CTkSwitch(self.anim_bar, text="Ses Efektleri", font=font(11), command=self._toggle_sound_switch),
+            ctk.CTkSwitch(anim_row1, text="Ses Efektleri", font=font(11, bold=True), command=self._toggle_sound_switch),
             TEXT_PRIMARY,
         )
         if self.dm.get_setting("sound_enabled", True):
             self.sound_switch.select()
-        self.sound_switch.pack(padx=14, pady=(6, 12), anchor="w")
+        self.sound_switch.pack(side="left")
+
+        vol_row = ctk.CTkFrame(self.anim_bar, fg_color="transparent")
+        vol_row.pack(fill="x", padx=14, pady=(4, 10))
+
+        self.styled(ctk.CTkLabel(vol_row, text="Ses Seviyesi:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 8)
+        )
+        cur_vol = int(self.dm.get_setting("sound_volume", 75) or 75)
+        self.vol_val_lbl = self.styled(ctk.CTkLabel(vol_row, text=f"%{cur_vol}", width=44, font=mono_font(11, bold=True)), TEXT_ACCENT)
+        self.vol_val_lbl.pack(side="left", padx=(0, 6))
+
+        self.vol_slider = ctk.CTkSlider(
+            vol_row, from_=10, to=100, number_of_steps=18, width=180, command=self._on_volume_slider_changed
+        )
+        self.vol_slider.set(cur_vol)
+        self.vol_slider.pack(side="left", padx=(0, 12))
+
+        self.test_sound_btn = self.styled(
+            ctk.CTkButton(vol_row, text="🔊 Sesi Test Et", width=110, height=28, font=font(11, bold=True), border_width=1,
+                          command=lambda: self.sound.play_reveal()),
+            BTN_CARD,
+        )
+        self.test_sound_btn.pack(side="left")
+
+        # Kura Defteri ve Animasyon Özelleştirme
+        self.paper_cust_title, self.paper_cust_bar = self._add_settings_section("Kura Defteri Görünümü ve Hızı")
+
+        p_row1 = ctk.CTkFrame(self.paper_cust_bar, fg_color="transparent")
+        p_row1.pack(fill="x", padx=14, pady=(10, 6))
+
+        self.styled(ctk.CTkLabel(p_row1, text="Defter Yaprağı Stili:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 8)
+        )
+        self.paper_style_menu = self.styled(
+            ctk.CTkOptionMenu(
+                p_row1,
+                values=["Kareli Defter", "Çizgili Defter", "Düz Beyaz Kağıt", "Koyu Kara Tahta"],
+                command=lambda c: self.dm.set_setting("paper_style", c),
+                width=155,
+                height=30,
+            ),
+            OPTION_MENU,
+        )
+        self.paper_style_menu.set(self.dm.get_setting("paper_style", "Kareli Defter"))
+        self.paper_style_menu.pack(side="left", padx=(0, 18))
+
+        self.styled(ctk.CTkLabel(p_row1, text="Animasyon Hızı:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 8)
+        )
+        self.anim_speed_menu = self.styled(
+            ctk.CTkOptionMenu(
+                p_row1,
+                values=["Çok Hızlı", "Hızlı (Önerilen)", "Normal"],
+                command=lambda c: self.dm.set_setting("anim_speed", c),
+                width=145,
+                height=30,
+            ),
+            OPTION_MENU,
+        )
+        self.anim_speed_menu.set(self.dm.get_setting("anim_speed", "Hızlı (Önerilen)"))
+        self.anim_speed_menu.pack(side="left")
+
+        p_row2 = ctk.CTkFrame(self.paper_cust_bar, fg_color="transparent")
+        p_row2.pack(fill="x", padx=14, pady=(4, 10))
+
+        self.styled(ctk.CTkLabel(p_row2, text="Defter Alt Mesajı:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 8)
+        )
+        self.badge_text_entry = self.styled(
+            ctk.CTkEntry(p_row2, width=280, height=30, font=font(11)), ENTRY
+        )
+        self.badge_text_entry.insert(0, self.dm.get_setting("paper_badge_text", "🎯 Sıradaki Soru Bu Öğrencimizde 🎯"))
+        self.badge_text_entry.pack(side="left", padx=(0, 8))
+        attach_context_menu(self.badge_text_entry, self.tm)
+
+        self.save_badge_btn = self.styled(
+            ctk.CTkButton(p_row2, text="Mesajı Kaydet", width=110, height=30, font=font(11, bold=True),
+                          command=self._save_paper_badge_text),
+            BTN_ACCENT,
+        )
+        self.save_badge_btn.pack(side="left")
+
+        # Okul / Öğretmen Başlığı Özelleştirme
+        self.brand_title, self.brand_bar = self._add_settings_section("Okul ve Öğretmen Başlığı Özelleştirme")
+
+        b_row = ctk.CTkFrame(self.brand_bar, fg_color="transparent")
+        b_row.pack(fill="x", padx=14, pady=10)
+
+        self.styled(ctk.CTkLabel(b_row, text="Sol Üst Başlık:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 6)
+        )
+        self.custom_title_entry = self.styled(ctk.CTkEntry(b_row, width=145, height=30, font=font(11)), ENTRY)
+        self.custom_title_entry.insert(0, self.dm.get_setting("app_custom_title", "Novaboard"))
+        self.custom_title_entry.pack(side="left", padx=(0, 12))
+        attach_context_menu(self.custom_title_entry, self.tm)
+
+        self.styled(ctk.CTkLabel(b_row, text="Alt Başlık / Branş:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 6)
+        )
+        self.custom_sub_entry = self.styled(ctk.CTkEntry(b_row, width=155, height=30, font=font(11)), ENTRY)
+        self.custom_sub_entry.insert(0, self.dm.get_setting("app_custom_subtitle", "Sınıf Yönetimi"))
+        self.custom_sub_entry.pack(side="left", padx=(0, 10))
+        attach_context_menu(self.custom_sub_entry, self.tm)
+
+        self.save_brand_btn = self.styled(
+            ctk.CTkButton(b_row, text="Başlığı Uygula", width=110, height=30, font=font(11, bold=True),
+                          command=self._save_custom_branding),
+            BTN_ACCENT,
+        )
+        self.save_brand_btn.pack(side="left")
+
+        # Akıllı Tahta Kalemi Varsayılanları & Panel Konumları
+        self.pen_cust_title, self.pen_cust_bar = self._add_settings_section("Akıllı Tahta Kalemi ve Panel Konumları")
+
+        pen_row = ctk.CTkFrame(self.pen_cust_bar, fg_color="transparent")
+        pen_row.pack(fill="x", padx=14, pady=10)
+
+        self.styled(ctk.CTkLabel(pen_row, text="Varsayılan Kalem Rengi:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 6)
+        )
+        color_name_map = {
+            "Kırmızı": "#ef4444",
+            "Mavi": "#2563eb",
+            "Yeşil": "#16a34a",
+            "Sarı": "#eab308",
+            "Turuncu": "#f97316",
+            "Mor": "#9333ea",
+            "Siyah": "#0f172a",
+            "Beyaz": "#ffffff",
+        }
+        inv_color_map = {v: k for k, v in color_name_map.items()}
+        cur_pcol = inv_color_map.get(self.dm.get_setting("pen_default_color", "#ef4444"), "Kırmızı")
+
+        self.pen_color_menu = self.styled(
+            ctk.CTkOptionMenu(
+                pen_row,
+                values=list(color_name_map.keys()),
+                command=lambda c: self.dm.set_setting("pen_default_color", color_name_map.get(c, "#ef4444")),
+                width=110,
+                height=30,
+            ),
+            OPTION_MENU,
+        )
+        self.pen_color_menu.set(cur_pcol)
+        self.pen_color_menu.pack(side="left", padx=(0, 14))
+
+        self.styled(ctk.CTkLabel(pen_row, text="Kalınlık:", font=font(11, bold=True)), TEXT_PRIMARY).pack(
+            side="left", padx=(0, 6)
+        )
+        self.pen_thick_menu = self.styled(
+            ctk.CTkOptionMenu(
+                pen_row,
+                values=["İnce", "Orta", "Kalın", "Çok Kalın"],
+                command=lambda c: self.dm.set_setting("pen_default_thickness", c),
+                width=105,
+                height=30,
+            ),
+            OPTION_MENU,
+        )
+        self.pen_thick_menu.set(self.dm.get_setting("pen_default_thickness", "Orta"))
+        self.pen_thick_menu.pack(side="left", padx=(0, 14))
+
+        self.reset_hud_pos_btn = self.styled(
+            ctk.CTkButton(pen_row, text="📍 Panel Konumlarını Sıfırla", height=30, font=font(11, bold=True), border_width=1,
+                          command=self._reset_hud_positions),
+            BTN_CARD,
+        )
+        self.reset_hud_pos_btn.pack(side="right")
+
+        # Yedekleme ve Veri Aktarımı
+        self.backup_title, self.backup_bar = self._add_settings_section("Veri Yedekleme ve Başka Tahtaya Aktarım")
+
+        bk_row = ctk.CTkFrame(self.backup_bar, fg_color="transparent")
+        bk_row.pack(fill="x", padx=14, pady=10)
+
+        self.styled(
+            ctk.CTkLabel(
+                bk_row,
+                text="Sınıflarınızı, kelimelerinizi ve ayarlarınızı tek dosyada yedekleyip başka bilgisayara/tahtaya taşıyın:",
+                font=font(11),
+            ),
+            TEXT_SECONDARY,
+        ).pack(side="left")
+
+        self.import_backup_btn = self.styled(
+            ctk.CTkButton(bk_row, text="📥 Yedek Yükle", width=115, height=30, font=font(11, bold=True), border_width=1,
+                          command=self._import_data_backup),
+            BTN_CARD,
+        )
+        self.import_backup_btn.pack(side="right", padx=(6, 0))
+
+        self.export_backup_btn = self.styled(
+            ctk.CTkButton(bk_row, text="📤 Yedek Al (.json)", width=130, height=30, font=font(11, bold=True),
+                          command=self._export_data_backup),
+            BTN_ACCENT,
+        )
+        self.export_backup_btn.pack(side="right")
 
         # Yeniden Başlat
         self.restart_section_title, self.restart_bar = self._add_settings_section("Yeniden Başlat", bottom_pad=24)
@@ -515,6 +718,80 @@ class MainWindow(ThemedMixin, ctk.CTk):
 
     def _toggle_sound_switch(self):
         self.dm.set_setting("sound_enabled", bool(self.sound_switch.get()))
+
+    def _on_volume_slider_changed(self, val):
+        v = int(round(float(val)))
+        if hasattr(self, "vol_val_lbl") and self.vol_val_lbl.winfo_exists():
+            self.vol_val_lbl.configure(text=f"%{v}")
+        if hasattr(self.sound, "set_volume"):
+            self.sound.set_volume(v)
+
+    def _save_paper_badge_text(self):
+        txt = self.badge_text_entry.get().strip() or "🎯 Sıradaki Soru Bu Öğrencimizde 🎯"
+        self.dm.set_setting("paper_badge_text", txt)
+        self.sound.play_reveal()
+        messagebox.showinfo("Kaydedildi", "Kura defteri alt mesajı güncellendi.")
+
+    def _save_custom_branding(self):
+        t_val = self.custom_title_entry.get().strip() or "Novaboard"
+        s_val = self.custom_sub_entry.get().strip() or "Sınıf Yönetimi"
+        self.dm.set_setting("app_custom_title", t_val)
+        self.dm.set_setting("app_custom_subtitle", s_val)
+        self.logo_label.configure(text=t_val)
+        self.subtitle_label.configure(text=s_val)
+        self.sound.play_reveal()
+        messagebox.showinfo("Kaydedildi", "Okul ve öğretmen başlığı güncellendi.")
+
+    def _reset_hud_positions(self):
+        self.dm.set_setting("drawer_pos_x", None)
+        self.dm.set_setting("drawer_pos_y", None)
+        self.dm.set_setting("pen_pos_x", None)
+        self.dm.set_setting("pen_pos_y", None)
+        self.sound.play_reveal()
+        messagebox.showinfo("Sıfırlandı", "Kura çekmecesi ve akıllı tahta kalemi konumları varsayılan ekran köşelerine sıfırlandı.")
+
+    def _export_data_backup(self):
+        from tkinter import filedialog
+        import shutil
+        save_path = filedialog.asksaveasfilename(
+            parent=self,
+            title="Novaboard Yedeğini Kaydet",
+            initialfile="Novaboard_Yedek.json",
+            defaultextension=".json",
+            filetypes=[("JSON Yedek Dosyası", "*.json")],
+        )
+        if save_path:
+            try:
+                self.dm.save_data()
+                shutil.copy2(self.dm.file_path, save_path)
+                self.sound.play_reveal()
+                messagebox.showinfo("Yedeklendi", f"Tüm sınıf, kelime ve ayar verileriniz yedeklendi:\n{save_path}")
+            except Exception as e:
+                messagebox.showerror("Hata", f"Yedekleme başarısız: {e}")
+
+    def _import_data_backup(self):
+        from tkinter import filedialog
+        import json
+        open_path = filedialog.askopenfilename(
+            parent=self,
+            title="Novaboard Yedek Dosyasını Seç",
+            filetypes=[("JSON Yedek Dosyası", "*.json")],
+        )
+        if open_path:
+            try:
+                with open(open_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                if not isinstance(loaded, dict) or "classes" not in loaded:
+                    messagebox.showwarning("Geçersiz Dosya", "Seçilen dosya geçerli bir Novaboard yedeği değil.")
+                    return
+                self.dm.data = loaded
+                self.dm.save_data()
+                self.dm.load_data()
+                self.sound.play_reveal()
+                messagebox.showinfo("Yüklendi", "Yedek dosyası başarıyla yüklendi. Uygulama yeniden başlatılıyor...")
+                self._restart_app()
+            except Exception as e:
+                messagebox.showerror("Hata", f"Yedek yüklenemedi: {e}")
 
     def _on_font_family_changed(self, choice):
         if choice != self.dm.get_setting("font_family", "Segoe UI"):

@@ -98,51 +98,53 @@ class SoundPlayer:
 
     def _build_sound_cache(self):
         try:
+            vol_pct = max(10, min(100, int(self.dm.get_setting("sound_volume", 75) or 75)))
+            v_mul = vol_pct / 75.0
             # 1. Tık / Seçim Sesi: Tok, net ve kulağı yormayan mekanik anahtar/ahşap tıkırtısı
             self._cache["tick"] = _synthesize_wav([
-                ((420.0, 220.0), 0.038, 0.42, 0.003, 0.14),
+                ((420.0, 220.0), 0.038, min(0.95, 0.42 * v_mul), 0.003, 0.14),
             ])
             # 2. Onay / Öğrenci Seçimi / Doğru Cevap: Sakin, tok ve net çift kademeli onay tınısı
             self._cache["reveal"] = _synthesize_wav([
-                (330.0, 0.075, 0.48, 0.008, 0.14),
-                (493.88, 0.180, 0.52, 0.010, 0.12),
+                (330.0, 0.075, min(0.95, 0.48 * v_mul), 0.008, 0.14),
+                (493.88, 0.180, min(0.95, 0.52 * v_mul), 0.010, 0.12),
             ])
             # 3. Hata / Yanlış Cevap Sesi: Düşük frekanslı, tok mekanik uyarı tonu
             self._cache["error"] = _synthesize_wav([
-                ((210.0, 150.0), 0.080, 0.48, 0.005, 0.22),
+                ((210.0, 150.0), 0.080, min(0.95, 0.48 * v_mul), 0.005, 0.22),
                 (0, 0.025, 0.0),
-                ((180.0, 130.0), 0.110, 0.48, 0.005, 0.22),
+                ((180.0, 130.0), 0.110, min(0.95, 0.48 * v_mul), 0.005, 0.22),
             ])
             # 4. Kağıt buruşturma: Yumuşak, doğal kağıt dokusu
             self._cache["crumple"] = _synthesize_wav([
-                (-1, 0.045, 0.30, 0.005, 0.0),
+                (-1, 0.045, min(0.95, 0.30 * v_mul), 0.005, 0.0),
                 (0, 0.014, 0.0),
-                (-1, 0.055, 0.34, 0.005, 0.0),
+                (-1, 0.055, min(0.95, 0.34 * v_mul), 0.005, 0.0),
                 (0, 0.012, 0.0),
-                (-1, 0.045, 0.28, 0.005, 0.0),
+                (-1, 0.045, min(0.95, 0.28 * v_mul), 0.005, 0.0),
             ])
             # 5. Çöp kovasına düşüş: Tok akustik "thud" ve onay
             self._cache["trash_swish"] = _synthesize_wav([
-                ((280.0, 140.0), 0.085, 0.50, 0.005, 0.15),
-                (440.0, 0.130, 0.42, 0.008, 0.10),
+                ((280.0, 140.0), 0.085, min(0.95, 0.50 * v_mul), 0.005, 0.15),
+                (440.0, 0.130, min(0.95, 0.42 * v_mul), 0.008, 0.10),
             ])
             # 6. Çöp kovası boşaltma / çöplerin dışarı fırlaması: Tok yükselen efekt
             self._cache["trash_burst"] = _synthesize_wav([
-                ((220.0, 480.0), 0.120, 0.48, 0.008, 0.14),
+                ((220.0, 480.0), 0.120, min(0.95, 0.48 * v_mul), 0.008, 0.14),
                 (0, 0.018, 0.0),
-                (587.33, 0.160, 0.46, 0.008, 0.10),
+                (587.33, 0.160, min(0.95, 0.46 * v_mul), 0.008, 0.10),
             ])
             # 7. Süre bitimi: Sakin, tok çift vuruşlu zil
             self._cache["timer_alarm"] = _synthesize_wav([
-                (440.0, 0.180, 0.55, 0.010, 0.15),
+                (440.0, 0.180, min(0.95, 0.55 * v_mul), 0.010, 0.15),
                 (0, 0.045, 0.0),
-                (587.33, 0.280, 0.55, 0.010, 0.14),
+                (587.33, 0.280, min(0.95, 0.55 * v_mul), 0.010, 0.14),
             ])
             # 8. Tur tamamlandı: Üç kademeli sakin, sıcak onay dizisi
             self._cache["complete_fanfare"] = _synthesize_wav([
-                (293.66, 0.095, 0.46, 0.008, 0.12),
-                (369.99, 0.095, 0.48, 0.008, 0.12),
-                (440.00, 0.240, 0.52, 0.010, 0.12),
+                (293.66, 0.095, min(0.95, 0.46 * v_mul), 0.008, 0.12),
+                (369.99, 0.095, min(0.95, 0.48 * v_mul), 0.008, 0.12),
+                (440.00, 0.240, min(0.95, 0.52 * v_mul), 0.010, 0.12),
             ])
 
             self._temp_dir = os.path.join(tempfile.gettempdir(), "novaboard_sounds_v2")
@@ -156,6 +158,11 @@ class SoundPlayer:
 
     def is_enabled(self):
         return bool(self.dm.get_setting("sound_enabled", True))
+
+    def set_volume(self, volume_pct: int):
+        v = max(10, min(100, int(volume_pct)))
+        self.dm.set_setting("sound_volume", v)
+        self._build_sound_cache()
 
     def toggle_audio(self) -> bool:
         new_state = not self.is_enabled()

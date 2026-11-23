@@ -10,10 +10,18 @@ from datetime import datetime
 # (drawer_pos_x / drawer_pos_y çekmece taşındığında ayrıca kaydedilir.)
 DEFAULT_SETTINGS = {
     "sound_enabled": True,
+    "sound_volume": 75,
     "theme": "dark",
     "custom_bg": "",
     "custom_accent": "",
     "paper_animation_enabled": True,
+    "anim_speed": "Hızlı (Önerilen)",
+    "paper_style": "Kareli Defter",
+    "paper_badge_text": "🎯 Sıradaki Soru Bu Öğrencimizde 🎯",
+    "app_custom_title": "Novaboard",
+    "app_custom_subtitle": "Sınıf Yönetimi",
+    "pen_default_color": "#ef4444",
+    "pen_default_thickness": "Orta",
     "font_family": "Segoe UI",
     "font_size_scale": "Standart",
     "quick_notes": "",

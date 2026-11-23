@@ -463,11 +463,15 @@ class ScreenPenHUD(ThemedMixin, ctk.CTkToplevel):
         self._is_animating_slide = False
         self._active_popover_name = None
 
-        # Çizim ve silgi durumu
+        # Çizim ve silgi durumu (Ayarlardan özelleştirilebilir varsayılan renk ve kalınlık)
         self.current_tool = "hand"
-        self.current_color = PALETTE[0][0]
-        self.thickness_label = "Orta"
-        self.current_width = THICKNESS_MAP["Orta"]
+        saved_col = self.dm.get_setting("pen_default_color", PALETTE[0][0]) or PALETTE[0][0]
+        saved_thk = self.dm.get_setting("pen_default_thickness", "Orta") or "Orta"
+        if saved_thk not in THICKNESS_MAP:
+            saved_thk = "Orta"
+        self.current_color = saved_col
+        self.thickness_label = saved_thk
+        self.current_width = THICKNESS_MAP[saved_thk]
         self.eraser_radius = int(self.dm.get_setting("pen_eraser_radius", 24) or 24)
         self.board_mode = "Şeffaf Ekran"
         self.curtain_active = False

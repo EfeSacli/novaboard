@@ -18,8 +18,26 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
         self.student_name = student_name
         self.class_name = class_name or "Sınıf"
         self.sound = sound_player
+        self.dm = getattr(sound_player, "dm", None)
         self.on_finish = on_finish
         self._is_closing = False
+
+        self.paper_style = self.dm.get_setting("paper_style", "Kareli Defter") if self.dm else "Kareli Defter"
+        self.badge_text = (
+            self.dm.get_setting("paper_badge_text", "🎯 Sıradaki Soru Bu Öğrencimizde 🎯")
+            if self.dm
+            else "🎯 Sıradaki Soru Bu Öğrencimizde 🎯"
+        ) or "🎯 Sıradaki Soru Bu Öğrencimizde 🎯"
+        self.school_title = (
+            self.dm.get_setting("app_custom_title", "Novaboard") if self.dm else "Novaboard"
+        ) or "Novaboard"
+        anim_speed_choice = self.dm.get_setting("anim_speed", "Hızlı (Önerilen)") if self.dm else "Hızlı (Önerilen)"
+        if anim_speed_choice == "Çok Hızlı":
+            self.speed_mul = 0.55
+        elif anim_speed_choice == "Normal":
+            self.speed_mul = 1.65
+        else:
+            self.speed_mul = 1.0
 
         self.overrideredirect(True)
         self.attributes("-topmost", True)
@@ -172,12 +190,18 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
     def _draw_notebook_paper(self, px, py, pw, ph):
         px, py, pw, ph = int(px), int(py), int(pw), int(ph)
         s = self.res_scale
+        is_dark_paper = self.paper_style == "Koyu Kara Tahta"
+        paper_bg = "#0f172a" if is_dark_paper else "#fdfcf7"
+        paper_border = "#334155" if is_dark_paper else "#cbd5e1"
+        line_col = "#1e293b" if is_dark_paper else "#e2e8f0"
+        name_col = "#f8fafc" if is_dark_paper else "#0f172a"
+        shadow_col = "#334155" if is_dark_paper else "#94a3b8"
 
         for off_x, off_y, col in [(16, 16, "#0f172a"), (12, 12, "#1e293b"), (8, 8, "#334155"), (4, 4, "#475569")]:
             ox, oy = int(off_x * s), int(off_y * s)
             self.canvas.create_rectangle(px + ox, py + oy, px + pw + ox, py + ph + oy, fill=col, outline="")
 
-        self.canvas.create_rectangle(px, py, px + pw, py + ph, fill="#fdfcf7", outline="#cbd5e1", width=2)
+        self.canvas.create_rectangle(px, py, px + pw, py + ph, fill=paper_bg, outline=paper_border, width=2)
 
         for hy in (py + int(80 * s), py + ph // 2, py + ph - int(80 * s)):
             self.canvas.create_oval(
@@ -193,18 +217,23 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
         self.canvas.create_line(margin_x + int(3 * s), py, margin_x + int(3 * s), py + ph, fill="#fca5a5", width=1.0)
 
         grid_step = max(16, int(24 * s))
-        for gx in range(margin_x + grid_step, px + pw - int(12 * s), grid_step):
-            self.canvas.create_line(gx, py + int(14 * s), gx, py + ph - int(14 * s), fill="#e2e8f0", width=1)
-        for gy in range(py + int(26 * s), py + ph - int(14 * s), grid_step):
-            self.canvas.create_line(margin_x, gy, px + pw - int(12 * s), gy, fill="#e2e8f0", width=1)
+        if self.paper_style == "Kareli Defter":
+            for gx in range(margin_x + grid_step, px + pw - int(12 * s), grid_step):
+                self.canvas.create_line(gx, py + int(14 * s), gx, py + ph - int(14 * s), fill=line_col, width=1)
+            for gy in range(py + int(26 * s), py + ph - int(14 * s), grid_step):
+                self.canvas.create_line(margin_x, gy, px + pw - int(12 * s), gy, fill=line_col, width=1)
+        elif self.paper_style == "Çizgili Defter":
+            line_step = max(22, int(32 * s))
+            for gy in range(py + int(36 * s), py + ph - int(14 * s), line_step):
+                self.canvas.create_line(margin_x, gy, px + pw - int(12 * s), gy, fill="#93c5fd", width=1)
 
         today_str = datetime.now().strftime("%d.%m.%Y")
         self.canvas.create_text(
             px + pw - int(24 * s), py + int(22 * s), text=f"✦ {self.class_name.upper()} • {today_str} ✦",
-            font=self._cfont(10), fill="#64748b", anchor="e",
+            font=self._cfont(10), fill="#94a3b8" if is_dark_paper else "#64748b", anchor="e",
         )
         self.canvas.create_text(
-            margin_x + int(16 * s), py + int(22 * s), text="📓 DERS İÇİ SORU & ETKİNLİK DEFTERİ",
+            margin_x + int(16 * s), py + int(22 * s), text=f"📓 {self.school_title.upper()} — SORU & ETKİNLİK DEFTERİ",
             font=self._cfont(9), fill="#94a3b8", anchor="w",
         )
 
@@ -215,22 +244,22 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
 
         self.canvas.create_text(
             name_center_x + 2, name_center_y + 2, text=self.student_name,
-            font=self._cfont(font_size), fill="#94a3b8",
+            font=self._cfont(font_size), fill=shadow_col,
         )
         self.canvas.create_text(
             name_center_x, name_center_y, text=self.student_name,
-            font=self._cfont(font_size), fill="#0f172a",
+            font=self._cfont(font_size), fill=name_col,
         )
 
         badge_y = name_center_y + int((font_size // 2 + 34) * s)
-        bw_half = int(175 * s)
+        bw_half = max(int(175 * s), int(len(self.badge_text) * 5.2 * s))
         bh_half = int(16 * s)
         self.canvas.create_rectangle(
             name_center_x - bw_half, badge_y - bh_half, name_center_x + bw_half, badge_y + bh_half,
             fill="#0369a1", outline="#38bdf8", width=2,
         )
         self.canvas.create_text(
-            name_center_x, badge_y, text="🎯 Sıradaki Soru Bu Öğrencimizde 🎯",
+            name_center_x, badge_y, text=self.badge_text,
             font=self._cfont(11), fill="#ffffff",
         )
 
@@ -346,9 +375,9 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
         def _done():
             self.paper_y = self.target_paper_y
             self.phase = "display"
-            self.after(750, self._step_bin_slide_up)
+            self.after(int(750 * self.speed_mul), self._step_bin_slide_up)
 
-        self._run_frames(8, 14, _frame, _done)
+        self._run_frames(max(4, int(8 * self.speed_mul)), 14, _frame, _done)
 
     def _step_bin_slide_up(self):
         if self._is_closing:
