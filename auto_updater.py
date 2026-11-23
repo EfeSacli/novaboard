@@ -84,26 +84,26 @@ def _select_best_asset(release_data: dict) -> tuple:
     is_win = sys.platform == "win32"
 
     if is_win:
-        # Çalışan mevcut exe kurulumlu mu yoksa taşınabilir mi kontrol et
-        exe_path = os.path.abspath(sys.executable).lower()
-        is_installed = "program files" in exe_path or "appdata\\local\\programs" in exe_path
-
+        # Windows 11 Akıllı Uygulama Denetimi (Smart App Control) Inno Setup'ın TEMP klasöründe
+        # oluşturduğu .tmp kurulum sihirbazını (Hata 4551) engelleyebildiği için, hem Kurulumlu
+        # hem Kurulumsuz güncellemelerde doğrudan saf çalıştırılabilir ikiliyi (Kurulumsuz .exe)
+        # indirip mevcut çalışan .exe'nin (AppData\Local\Programs\Novaboard\Novaboard.exe dahil)
+        # yerine yerinde (in-place) yazarız. Böylece kurulum sihirbazı tekrar açılmaz ve Hata 4551 oluşmaz.
         exe_assets = [a for a in assets if a.get("name", "").lower().endswith(".exe")]
         zip_assets = [a for a in assets if a.get("name", "").lower().endswith(".zip") and "windows" in a.get("name", "").lower()]
 
         if exe_assets:
-            if is_installed:
-                preferred = [a for a in exe_assets if "kurulumlu" in a.get("name", "").lower() or "setup" in a.get("name", "").lower()]
-            else:
-                preferred = [a for a in exe_assets if "kurulumsuz" in a.get("name", "").lower() or "portable" in a.get("name", "").lower()]
+            preferred = [
+                a for a in exe_assets
+                if "kurulumsuz" in a.get("name", "").lower() or "portable" in a.get("name", "").lower()
+            ]
             chosen = preferred[0] if preferred else exe_assets[0]
             return chosen.get("browser_download_url"), chosen.get("name")
 
         if zip_assets:
             return zip_assets[0].get("browser_download_url"), zip_assets[0].get("name")
 
-        # Release'e dosya eklenmemişse doğrudan surumler/vX.Y.Z/ altındaki .exe'yi indir
-        fallback_name = f"Novaboard-Windows-Kurulumlu-v{ver_num}.exe" if is_installed else f"Novaboard-Windows-Kurulumsuz-v{ver_num}.exe"
+        fallback_name = f"Novaboard-Windows-Kurulumsuz-v{ver_num}.exe"
         return f"{RAW_SURUMLER_BASE}/{v_folder}/{fallback_name}", fallback_name
 
     else:
@@ -202,40 +202,61 @@ def _launch_downloaded_update_and_exit(downloaded_path: str):
             | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
         )
 
-        if is_frozen and is_portable_update and os.path.exists(current_exe):
+        if is_frozen and downloaded_path.lower().endswith(".exe") and os.path.exists(current_exe):
             cur_dir = os.path.dirname(current_exe)
-            target_exe = os.path.join(cur_dir, dl_name)
+            cur_base_lower = os.path.basename(current_exe).lower()
 
-            # Eğer dosya adı yeni sürüm numarası içeriyorsa (örn: v1.1.0 -> v1.2.1), aynı klasöre doğrudan kopyala ve başlat
-            if os.path.normcase(target_exe) != os.path.normcase(current_exe):
-                try:
+            # Kurulumlu sürümde (Novaboard.exe) masaüstü/başlat menüsü kısayollarının bozulmaması için
+            # dosya adını sabit 'Novaboard.exe' olarak koru; kurulumsuzda yeni sürüm adını kullan.
+            if cur_base_lower == "novaboard.exe":
+                target_exe = current_exe
+            else:
+                target_exe = os.path.join(cur_dir, dl_name)
+
+            # 1. Yöntem: Windows NTFS çalışan .exe dosyasının adını değiştirmeye (.old) izin verir.
+            # Böylece yeni .exe anında yerine kopyalanıp doğrudan temiz ortamla başlatılır.
+            old_trash_exe = current_exe + ".old"
+            try:
+                if os.path.exists(old_trash_exe):
+                    try:
+                        os.remove(old_trash_exe)
+                    except Exception:
+                        pass
+
+                if os.path.normcase(target_exe) == os.path.normcase(current_exe):
+                    os.replace(current_exe, old_trash_exe)
                     shutil.copy2(downloaded_path, target_exe)
-                    subprocess.Popen(
-                        [target_exe],
-                        env=clean_env,
-                        cwd=cur_dir,
-                        close_fds=True,
-                        creationflags=detach_flags,
-                    )
-                    # Eski sürüm .exe kapandıktan 3 sn sonra arka planda görünmez olarak eski dosyayı temizle
-                    subprocess.Popen(
-                        ["cmd.exe", "/c", f'ping 127.0.0.1 -n 4 >nul & del /f /q "{current_exe}" >nul 2>&1'],
-                        env=clean_env,
-                        cwd=cur_dir,
-                        close_fds=True,
-                        creationflags=no_win_flag,
-                    )
-                    os._exit(0)
-                except Exception:
-                    pass
+                    cleanup_target = old_trash_exe
+                else:
+                    shutil.copy2(downloaded_path, target_exe)
+                    cleanup_target = current_exe
 
-            # Aynı dosya adına sahipse, kapandıktan sonra üzerine yazıp başlatan tamamen görünmez (CREATE_NO_WINDOW) komut
+                subprocess.Popen(
+                    [target_exe],
+                    env=clean_env,
+                    cwd=cur_dir,
+                    close_fds=True,
+                    creationflags=detach_flags,
+                )
+                subprocess.Popen(
+                    ["cmd.exe", "/c", f'ping 127.0.0.1 -n 4 >nul & del /f /q "{cleanup_target}" >nul 2>&1'],
+                    env=clean_env,
+                    cwd=cur_dir,
+                    close_fds=True,
+                    creationflags=no_win_flag,
+                )
+                os._exit(0)
+            except Exception:
+                pass
+
+            # 2. Yöntem (Yedek): Kapandıktan sonra üzerine yazıp başlatan tamamen görünmez komut
             try:
                 cmd_line = (
-                    f'set "_MEIPASS2=" & set "_MEIPASS=" & '
+                    f'set "PYINSTALLER_RESET_ENVIRONMENT=1" & set "_PYI_APPLICATION_HOME_DIR=" & '
+                    f'set "_PYI_PARENT_PROCESS_LEVEL=" & set "_MEIPASS2=" & set "_MEIPASS=" & '
                     f'ping 127.0.0.1 -n 3 >nul & '
-                    f'copy /y "{downloaded_path}" "{current_exe}" >nul & '
-                    f'start "" "{current_exe}"'
+                    f'copy /y "{downloaded_path}" "{target_exe}" >nul & '
+                    f'start "" "{target_exe}"'
                 )
                 subprocess.Popen(
                     ["cmd.exe", "/c", cmd_line],
