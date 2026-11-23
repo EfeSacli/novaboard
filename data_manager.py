@@ -17,6 +17,7 @@ DEFAULT_SETTINGS = {
     "font_family": "Segoe UI",
     "font_size_scale": "Standart",
     "quick_notes": "",
+    "vocab_only_custom": False,
 }
 
 CLASS_LIST_KEYS = ("students", "picked", "exempt", "history")
@@ -83,6 +84,7 @@ class DataManager:
         settings = self.data.setdefault("settings", {})
         for key, value in DEFAULT_SETTINGS.items():
             settings.setdefault(key, value)
+        self.data.setdefault("custom_vocabulary", [])
         for cdata in self.data["classes"].values():
             for key in CLASS_LIST_KEYS:
                 cdata.setdefault(key, [])
@@ -338,6 +340,71 @@ class DataManager:
         if c:
             c["vocab_competed"] = []
             self.save_data()
+
+    # --- Öğretmen Özel Kelime Havuzu ---
+    def get_custom_vocabulary(self):
+        return list(self.data.setdefault("custom_vocabulary", []))
+
+    def add_custom_word(self, word: str, correct: str):
+        w = (word or "").strip()
+        c = (correct or "").strip()
+        if not w or not c:
+            return False, "Kelime ve doğru şık alanları boş bırakılamaz."
+        vocab = self.data.setdefault("custom_vocabulary", [])
+        for item in vocab:
+            if item.get("word", "").strip().lower() == w.lower():
+                item["word"] = w
+                item["correct"] = c
+                self.save_data()
+                return True, f"'{w}' kelimesi güncellendi."
+        vocab.append({"word": w, "correct": c})
+        self.save_data()
+        return True, f"'{w}' kelimesi eklendi."
+
+    def add_bulk_custom_words(self, raw_text: str) -> int:
+        vocab = self.data.setdefault("custom_vocabulary", [])
+        existing_map = {item.get("word", "").strip().lower(): item for item in vocab}
+        added_count = 0
+        for line in (raw_text or "").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = None
+            for sep in ("\t", " - ", " = ", " : ", "-", "=", ":"):
+                if sep in line:
+                    sp = line.split(sep, 1)
+                    if len(sp) == 2 and sp[0].strip() and sp[1].strip():
+                        parts = (sp[0].strip(), sp[1].strip())
+                        break
+            if not parts:
+                continue
+            w, c = parts
+            key = w.lower()
+            if key in existing_map:
+                existing_map[key]["word"] = w
+                existing_map[key]["correct"] = c
+            else:
+                new_item = {"word": w, "correct": c}
+                vocab.append(new_item)
+                existing_map[key] = new_item
+            added_count += 1
+        if added_count > 0:
+            self.save_data()
+        return added_count
+
+    def remove_custom_word(self, word: str):
+        w_low = (word or "").strip().lower()
+        vocab = self.data.setdefault("custom_vocabulary", [])
+        before = len(vocab)
+        self.data["custom_vocabulary"] = [item for item in vocab if item.get("word", "").strip().lower() != w_low]
+        if len(self.data["custom_vocabulary"]) != before:
+            self.save_data()
+            return True
+        return False
+
+    def clear_custom_vocabulary(self):
+        self.data["custom_vocabulary"] = []
+        self.save_data()
 
     # --- Ayarlar ---
     def get_setting(self, key, default=None):

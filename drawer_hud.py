@@ -4,7 +4,7 @@ import random
 from tkinter import messagebox
 import customtkinter as ctk
 
-from notebook_overlay import NotebookRevealOverlay
+from notebook_overlay import NotebookRevealOverlay, TrashResetOverlay
 from ui_kit import (
     ThemedMixin, font, set_window_icon,
     BTN_ACCENT, BTN_SUCCESS, BTN_INNER,
@@ -391,15 +391,15 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
 
         winner, is_exhausted = self.dm.pick_random(active_class)
         pool = all_students if len(all_students) > 1 else [winner]
-        shuffles = 8
-        base_delay = 45
+        shuffles = 5
+        base_delay = 35
         t = self.tm.get_theme()
 
         def _shuffle_step(step_idx):
             if step_idx < shuffles:
                 self.name_label.configure(text=random.choice(pool), text_color=t["accent"])
                 self.sound.play_tick()
-                next_delay = base_delay + int((step_idx / shuffles) ** 2 * 50)
+                next_delay = base_delay + int((step_idx / shuffles) ** 2 * 35)
                 self.after(next_delay, lambda: _shuffle_step(step_idx + 1))
             else:
                 self._trigger_reveal(winner, is_exhausted)
@@ -409,6 +409,9 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
     def _trigger_reveal(self, winner, is_exhausted):
         self._is_picking = False
         self._last_shown_student = winner
+        # Sağ üst çekmece panelindeki öğrenci ismini tam ekran animasyonla AYNI ANDA güncelle
+        self._update_display_after_reveal(winner, is_exhausted)
+        self.update_idletasks()
         self.sound.play_reveal()
 
         def _on_overlay_done():
@@ -460,14 +463,25 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
             )
 
     def _reset_and_start_new_cycle(self):
-        self.dm.reset_picked(self.dm.get_active_class())
+        active_class = self.dm.get_active_class()
+        picked_before_reset = list(self.dm.get_picked_students(active_class))
+        self.dm.reset_picked(active_class)
         self._last_shown_student = None
         self._is_cycle_completed = False
         self.refresh_display()
         t = self.tm.get_theme()
         self.name_label.configure(text="Yeni Tur Başlatıldı", text_color=t["success"], font=font(13, bold=True))
         self.sub_label.configure(text="Soru yöneltmek için butona basınız", text_color=t["text_secondary"])
-        self._ensure_topmost_lock()
+
+        if picked_before_reset and self.dm.get_setting("paper_animation_enabled", True):
+            TrashResetOverlay(
+                master=self,
+                picked_students=picked_before_reset,
+                sound_player=self.sound,
+                on_finish=self._ensure_topmost_lock,
+            )
+        else:
+            self._ensure_topmost_lock()
 
     def _undo_last(self):
         undone = self.dm.undo_pick(self.dm.get_active_class())

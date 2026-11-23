@@ -5,9 +5,9 @@ from datetime import datetime
 
 from vocabulary_data import B1_VOCABULARY
 from ui_kit import (
-    ThemedMixin, font,
-    BTN_ACCENT, BTN_SUCCESS, BTN_DANGER, BTN_CARD, BTN_INNER,
-    CARD, CARD_INNER, resolve,
+    ThemedMixin, font, paste_into_widget,
+    BTN_ACCENT, BTN_SUCCESS, BTN_DANGER, BTN_DANGER_SOFT, BTN_CARD, BTN_INNER,
+    CARD, CARD_INNER, ENTRY, TEXTBOX, resolve,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_ACCENT,
 )
 
@@ -148,7 +148,21 @@ class VocabularyGameFrame(ThemedMixin, ctk.CTkFrame):
             unselected_color="bg_card_inner", unselected_hover_color="bg_hover", text_color="text_primary",
         )
         self.duration_seg.set("45 sn")
-        self.duration_seg.pack(side="left", padx=(0, 12))
+        self.duration_seg.pack(side="left", padx=(0, 10))
+
+        self.btn_custom_words = self.styled(
+            ctk.CTkButton(
+                row2,
+                text=self._get_custom_words_btn_text(),
+                width=148,
+                height=32,
+                font=font(11, bold=True),
+                border_width=1,
+                command=self._open_custom_words_modal,
+            ),
+            BTN_INNER,
+        )
+        self.btn_custom_words.pack(side="left", padx=(0, 8))
 
         self.start_btn = self.styled(
             ctk.CTkButton(row2, text="Yarışmayı Başlat", width=140, height=34, font=font(12, bold=True),
@@ -531,8 +545,313 @@ class VocabularyGameFrame(ThemedMixin, ctk.CTkFrame):
             )
 
     def _set_controls_state(self, state):
-        for w in (self.duration_seg, self.student_menu, self.btn_kura, self.btn_queue_modal, self.btn_reset_cycle):
+        for w in (self.duration_seg, self.student_menu, self.btn_kura, self.btn_queue_modal, self.btn_reset_cycle, self.btn_custom_words):
             w.configure(state=state)
+
+    def _get_custom_words_btn_text(self):
+        cnt = len(self.dm.get_custom_vocabulary())
+        return f"📝 Kelime Ekle ({cnt})" if cnt > 0 else "📝 Kelime Ekle"
+
+    def _build_question_deck(self):
+        """
+        Öğretmenin eklediği özel kelimeler ile varsayılan müfredat kelimelerini birleştirir.
+        Öğretmenin eklediği her kelimenin yanlış 3 şıkkını (çeldiricileri) diğer kelimelerin
+        doğru şıklarından otomatik ve rastgele olarak atar.
+        """
+        custom_raw = self.dm.get_custom_vocabulary()
+        only_custom = bool(self.dm.get_setting("vocab_only_custom", False))
+
+        custom_meanings = []
+        for item in custom_raw:
+            m = item.get("correct", "").strip()
+            if m and m not in custom_meanings:
+                custom_meanings.append(m)
+
+        default_meanings = []
+        for q in B1_VOCABULARY:
+            m = q["options"][0].strip()
+            if m and m not in default_meanings:
+                default_meanings.append(m)
+
+        custom_questions = []
+        for item in custom_raw:
+            w = item.get("word", "").strip()
+            c = item.get("correct", "").strip()
+            if not w or not c:
+                continue
+
+            # Önce öğretmenin eklediği diğer kelimelerin doğru şıklarından yanlış şık seç
+            pool_primary = [m for m in custom_meanings if m.lower() != c.lower()]
+            if len(pool_primary) >= 3:
+                distractors = random.sample(pool_primary, 3)
+            else:
+                distractors = list(pool_primary)
+                used_lower = {c.lower()} | {d.lower() for d in distractors}
+                pool_fallback = [m for m in default_meanings if m.lower() not in used_lower]
+                need = 3 - len(distractors)
+                if len(pool_fallback) >= need:
+                    distractors.extend(random.sample(pool_fallback, need))
+                else:
+                    distractors.extend(pool_fallback)
+                    while len(distractors) < 3:
+                        distractors.append(f"Seçenek {len(distractors) + 1}")
+
+            custom_questions.append({
+                "word": w,
+                "type": "Öğretmen Kelimesi",
+                "options": [c, distractors[0], distractors[1], distractors[2]],
+            })
+
+        if custom_questions and only_custom:
+            deck = list(custom_questions)
+        else:
+            deck = list(custom_questions) + list(B1_VOCABULARY)
+
+        random.shuffle(deck)
+        return deck
+
+    def _open_custom_words_modal(self):
+        t = self.tm.get_theme()
+        modal = ctk.CTkToplevel(self)
+        modal.title("Öğretmen Kelime Havuzu - Kelime Ekle & Yönet")
+        modal.geometry("560x580")
+        modal.minsize(500, 500)
+        modal.transient(self.winfo_toplevel())
+        modal.grab_set()
+        try:
+            modal.configure(fg_color=t["bg_main"])
+        except Exception:
+            pass
+
+        # Başlık ve açıklama
+        head_card = self.styled(ctk.CTkFrame(modal, corner_radius=10, border_width=1), CARD)
+        head_card.pack(fill="x", padx=12, pady=(12, 6))
+
+        self.styled(
+            ctk.CTkLabel(head_card, text="📝 Kendi Kelimelerinizi Ekleyin", font=font(14, bold=True)), TEXT_PRIMARY
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+        self.styled(
+            ctk.CTkLabel(
+                head_card,
+                text="Kelimeyi ve doğru anlamını yazınız. Yanlış 3 şık diğer kelimelerden rastgele otomatik atanır.",
+                font=font(11),
+            ),
+            TEXT_SECONDARY,
+        ).pack(anchor="w", padx=12, pady=(0, 8))
+
+        # Hızlı Tekli Kelime Ekleme Alanı
+        add_card = self.styled(ctk.CTkFrame(modal, corner_radius=10, border_width=1), CARD)
+        add_card.pack(fill="x", padx=12, pady=(0, 6))
+
+        inputs_row = ctk.CTkFrame(add_card, fg_color="transparent")
+        inputs_row.pack(fill="x", padx=10, pady=(10, 6))
+
+        word_entry = self.styled(
+            ctk.CTkEntry(inputs_row, placeholder_text="Kelime (Örn: Accomplish)", height=34, font=font(12)), ENTRY
+        )
+        word_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        correct_entry = self.styled(
+            ctk.CTkEntry(inputs_row, placeholder_text="Doğru Şık (Örn: Başarmak)", height=34, font=font(12)), ENTRY
+        )
+        correct_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        for ent in (word_entry, correct_entry):
+            ent.bind("<Control-v>", lambda _e, w=ent: paste_into_widget(w))
+            ent.bind("<Control-V>", lambda _e, w=ent: paste_into_widget(w))
+
+        status_lbl = self.styled(ctk.CTkLabel(add_card, text="", font=font(11, bold=True)), TEXT_ACCENT)
+        status_lbl.pack(anchor="w", padx=12, pady=(0, 6))
+
+        # Sadece kendi kelimelerimi sor seçeneği
+        opt_row = ctk.CTkFrame(modal, fg_color="transparent")
+        opt_row.pack(fill="x", padx=14, pady=(0, 6))
+
+        only_custom_var = ctk.BooleanVar(value=bool(self.dm.get_setting("vocab_only_custom", False)))
+
+        def on_toggle_only_custom():
+            self.dm.set_setting("vocab_only_custom", bool(only_custom_var.get()))
+            self.sound.play_tick()
+
+        only_cb = ctk.CTkCheckBox(
+            opt_row,
+            text="Yarışmada sadece kendi eklediğim kelimeleri sor",
+            variable=only_custom_var,
+            command=on_toggle_only_custom,
+            font=font(11, bold=True),
+            text_color=t["text_primary"],
+            fg_color=t["accent"],
+            hover_color=t["accent_hover"],
+        )
+        only_cb.pack(side="left")
+
+        count_lbl = self.styled(ctk.CTkLabel(opt_row, text="0 Kelime", font=font(11, bold=True)), TEXT_ACCENT)
+        count_lbl.pack(side="right")
+
+        # Eklenen Kelimeler Listesi
+        list_scroll = self.styled(ctk.CTkScrollableFrame(modal, corner_radius=10), fg_color="bg_card")
+        list_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+
+        def refresh_words_list():
+            for ch in list_scroll.winfo_children():
+                ch.destroy()
+            words = self.dm.get_custom_vocabulary()
+            count_lbl.configure(text=f"Eklenen: {len(words)} Kelime")
+            self.btn_custom_words.configure(text=self._get_custom_words_btn_text())
+
+            if not words:
+                ctk.CTkLabel(
+                    list_scroll,
+                    text="Henüz özel kelime eklenmedi.\nYukarıdan kelime ve doğru şıkkı yazıp '+ Ekle' butonuna basınız.",
+                    font=font(11),
+                    text_color=t["text_secondary"],
+                    justify="center",
+                ).pack(pady=36)
+                return
+
+            for idx, item in enumerate(reversed(words)):
+                w_text = item.get("word", "")
+                c_text = item.get("correct", "")
+                row = ctk.CTkFrame(list_scroll, fg_color=t["bg_card_inner"], corner_radius=7)
+                row.pack(fill="x", padx=6, pady=2.5)
+
+                ctk.CTkLabel(
+                    row,
+                    text=f"{len(words) - idx}. {w_text}",
+                    font=font(12, bold=True),
+                    text_color=t["text_primary"],
+                    anchor="w",
+                ).pack(side="left", padx=(10, 6), pady=6)
+
+                ctk.CTkLabel(
+                    row,
+                    text=f"→  {c_text}",
+                    font=font(11),
+                    text_color=t["accent"],
+                    anchor="w",
+                ).pack(side="left", fill="x", expand=True, padx=4, pady=6)
+
+                ctk.CTkButton(
+                    row,
+                    text="Sil",
+                    width=48,
+                    height=24,
+                    corner_radius=5,
+                    font=font(10, bold=True),
+                    **resolve(BTN_DANGER_SOFT, t),
+                    command=lambda target_w=w_text: on_delete_word(target_w),
+                ).pack(side="right", padx=8, pady=5)
+
+        def on_add_single(_event=None):
+            w_val = word_entry.get().strip()
+            c_val = correct_entry.get().strip()
+            ok, msg = self.dm.add_custom_word(w_val, c_val)
+            if not ok:
+                status_lbl.configure(text=f"⚠️ {msg}", text_color=t["danger"])
+                return
+            word_entry.delete(0, "end")
+            correct_entry.delete(0, "end")
+            word_entry.focus_set()
+            # İlk kez kelime ekleniyorsa otomatik olarak kendi kelimelerini sorma seçeneğini aktif et
+            if len(self.dm.get_custom_vocabulary()) == 1 and not only_custom_var.get():
+                only_custom_var.set(True)
+                self.dm.set_setting("vocab_only_custom", True)
+            status_lbl.configure(text=f"✅ {msg}", text_color=t["success"])
+            self.sound.play_tick()
+            refresh_words_list()
+
+        def on_delete_word(target_w):
+            self.dm.remove_custom_word(target_w)
+            if not self.dm.get_custom_vocabulary() and only_custom_var.get():
+                only_custom_var.set(False)
+                self.dm.set_setting("vocab_only_custom", False)
+            self.sound.play_tick()
+            refresh_words_list()
+
+        def on_clear_all():
+            if not self.dm.get_custom_vocabulary():
+                return
+            if messagebox.askyesno("Onay", "Eklediğiniz tüm özel kelimeler silinsin mi?", parent=modal):
+                self.dm.clear_custom_vocabulary()
+                only_custom_var.set(False)
+                self.dm.set_setting("vocab_only_custom", False)
+                status_lbl.configure(text="Tüm özel kelimeler temizlendi.", text_color=t["text_secondary"])
+                self.sound.play_tick()
+                refresh_words_list()
+
+        def open_bulk_paste():
+            b_win = ctk.CTkToplevel(modal)
+            b_win.title("Toplu Kelime Ekle")
+            b_win.geometry("460x380")
+            b_win.transient(modal)
+            b_win.grab_set()
+            try:
+                b_win.configure(fg_color=t["bg_main"])
+            except Exception:
+                pass
+            ctk.CTkLabel(
+                b_win,
+                text="Her satıra 'Kelime - Doğru Şık' formatında yazın veya yapıştırın:",
+                font=font(11, bold=True),
+                text_color=t["text_primary"],
+            ).pack(anchor="w", padx=12, pady=(10, 4))
+            tb = self.styled(ctk.CTkTextbox(b_win, font=font(11)), TEXTBOX)
+            tb.pack(fill="both", expand=True, padx=12, pady=4)
+            tb.bind("<Control-v>", lambda _e: paste_into_widget(tb))
+            tb.bind("<Control-V>", lambda _e: paste_into_widget(tb))
+
+            def do_bulk():
+                raw = tb.get("1.0", "end")
+                added = self.dm.add_bulk_custom_words(raw)
+                if added > 0:
+                    only_custom_var.set(True)
+                    self.dm.set_setting("vocab_only_custom", True)
+                    status_lbl.configure(text=f"✅ {added} kelime toplu olarak eklendi.", text_color=t["success"])
+                    self.sound.play_reveal()
+                    refresh_words_list()
+                    b_win.destroy()
+                else:
+                    messagebox.showinfo(
+                        "Bilgi",
+                        "Geçerli satır bulunamadı. Örnek format:\nAccomplish - Başarmak\nGenerous - Cömert",
+                        parent=b_win,
+                    )
+
+            ctk.CTkButton(
+                b_win, text="✔️ Kelimeleri Aktar", height=36, font=font(12, bold=True),
+                **resolve(BTN_ACCENT, t), command=do_bulk,
+            ).pack(fill="x", padx=12, pady=(4, 12))
+
+        add_btn = self.styled(
+            ctk.CTkButton(inputs_row, text="+ Ekle", width=78, height=34, font=font(12, bold=True), command=on_add_single),
+            BTN_ACCENT,
+        )
+        add_btn.pack(side="left")
+
+        word_entry.bind("<Return>", lambda _e: correct_entry.focus_set())
+        correct_entry.bind("<Return>", on_add_single)
+
+        # Alt Buton Çubuğu
+        bottom_bar = ctk.CTkFrame(modal, fg_color="transparent")
+        bottom_bar.pack(fill="x", padx=12, pady=(0, 12))
+
+        ctk.CTkButton(
+            bottom_bar, text="📋 Toplu Yapıştır", width=124, height=34, font=font(11, bold=True),
+            border_width=1, **resolve(BTN_INNER, t), command=open_bulk_paste,
+        ).pack(side="left", padx=(0, 6))
+
+        ctk.CTkButton(
+            bottom_bar, text="🗑️ Tümünü Sil", width=110, height=34, font=font(11, bold=True),
+            **resolve(BTN_DANGER_SOFT, t), command=on_clear_all,
+        ).pack(side="left")
+
+        ctk.CTkButton(
+            bottom_bar, text="Tamam / Kapat", width=130, height=34, font=font(11, bold=True),
+            **resolve(BTN_ACCENT, t), command=modal.destroy,
+        ).pack(side="right")
+
+        refresh_words_list()
+        word_entry.focus_set()
 
     def _toggle_game_round(self):
         if self.is_running:
@@ -556,8 +875,7 @@ class VocabularyGameFrame(ThemedMixin, ctk.CTkFrame):
         self.is_running = True
         self.answering_locked = False
 
-        self.deck = list(B1_VOCABULARY)
-        random.shuffle(self.deck)
+        self.deck = self._build_question_deck()
 
         self._set_controls_state("disabled")
         self.start_btn.configure(text="⏹️ Turu Bitir", **resolve(BTN_DANGER, t))
@@ -607,8 +925,7 @@ class VocabularyGameFrame(ThemedMixin, ctk.CTkFrame):
         t = self.tm.get_theme()
 
         if not self.deck:
-            self.deck = list(B1_VOCABULARY)
-            random.shuffle(self.deck)
+            self.deck = self._build_question_deck()
 
         self.current_q = self.deck.pop()
         self.word_label.configure(text=self.current_q["word"], text_color=t["text_primary"])

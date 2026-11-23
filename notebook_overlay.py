@@ -339,16 +339,16 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
             bounce = math.sin(progress * math.pi) * 8 * (1.0 - progress)
             self.paper_y = start_y + eased * (self.target_paper_y - start_y) - bounce
             for p in self.particles:
-                p["x"] += p["vx"]
-                p["y"] += p["vy"]
-                p["life"] = max(0.0, p["life"] - p["decay"])
+                p["x"] += p["vx"] * 1.6
+                p["y"] += p["vy"] * 1.6
+                p["life"] = max(0.0, p["life"] - p["decay"] * 1.6)
 
         def _done():
             self.paper_y = self.target_paper_y
             self.phase = "display"
-            self.after(1600, self._step_bin_slide_up)
+            self.after(750, self._step_bin_slide_up)
 
-        self._run_frames(15, 20, _frame, _done)
+        self._run_frames(8, 14, _frame, _done)
 
     def _step_bin_slide_up(self):
         if self._is_closing:
@@ -362,9 +362,9 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
 
         def _done():
             self.bin_current_y = self.bin_target_y
-            self.after(120, self._step_crumple_paper)
+            self.after(40, self._step_crumple_paper)
 
-        self._run_frames(14, 20, _frame, _done)
+        self._run_frames(7, 14, _frame, _done)
 
     def _step_crumple_paper(self):
         if self._is_closing:
@@ -377,9 +377,9 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
 
         def _done():
             self.crumple_factor = 1.0
-            self.after(80, self._step_toss_ball)
+            self.after(30, self._step_toss_ball)
 
-        self._run_frames(16, 22, _frame, _done)
+        self._run_frames(8, 14, _frame, _done)
 
     def _step_toss_ball(self):
         if self._is_closing:
@@ -403,7 +403,7 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
             self.sound.play_trash_swish()
             self._step_basket_impact()
 
-        self._run_frames(20, 20, _frame, _done)
+        self._run_frames(10, 14, _frame, _done)
 
     def _step_basket_impact(self):
         if self._is_closing:
@@ -412,7 +412,7 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
         self.ball_y = self.screen_h + 200
         self._init_splash_particles()
 
-        bounce_frames = [10, 16, 8, -4, 2, 0]
+        bounce_frames = [12, 16, -4, 0]
         idx = 0
 
         def _bounce():
@@ -420,19 +420,19 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
             if self._is_closing:
                 return
             for sp in self.splash_particles:
-                sp["x"] += sp["vx"]
-                sp["y"] += sp["vy"]
-                sp["vy"] += 0.4
-                sp["life"] -= 0.08
+                sp["x"] += sp["vx"] * 1.6
+                sp["y"] += sp["vy"] * 1.6
+                sp["vy"] += 0.65
+                sp["life"] -= 0.18
 
             self.bin_bounce = bounce_frames[idx] if idx < len(bounce_frames) else 0
             idx += 1
             self._draw_scene()
 
             if idx < len(bounce_frames) or any(sp["life"] > 0 for sp in self.splash_particles):
-                self.after(30, _bounce)
+                self.after(16, _bounce)
             else:
-                self.after(350, self._step_bin_slide_down)
+                self.after(110, self._step_bin_slide_down)
 
         _bounce()
 
@@ -445,7 +445,276 @@ class NotebookRevealOverlay(ctk.CTkToplevel):
         def _frame(_step, progress):
             self.bin_current_y = start_y + (progress ** 2) * (self.screen_h + 80 - start_y)
 
-        self._run_frames(12, 20, _frame, self.skip_and_close)
+        self._run_frames(6, 14, _frame, self.skip_and_close)
+
+    def skip_and_close(self):
+        if self._is_closing:
+            return
+        self._is_closing = True
+        try:
+            self.destroy()
+        except Exception:
+            pass
+        if self.on_finish:
+            try:
+                self.on_finish()
+            except Exception:
+                pass
+
+
+class TrashResetOverlay(ctk.CTkToplevel):
+    """
+    Novaboard - Tur Sıfırlama / Yenileme Çöp Kovası Boşaltma Animasyonu.
+    Öğrenciler seçildikten veya liste tamamlandıktan sonra yenile/sıfırla butonuna basıldığında
+    çöp kovasındaki buruşturulmuş kağıt topları dışarı fırlar, havada dağılır ve parıltılarla yok olur.
+    """
+
+    def __init__(self, master, picked_students, sound_player, on_finish=None):
+        super().__init__(master)
+        self.picked_students = list(picked_students or [])
+        self.sound = sound_player
+        self.on_finish = on_finish
+        self._is_closing = False
+
+        self.overrideredirect(True)
+        self.attributes("-topmost", True)
+
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        self.geometry(f"{screen_w}x{screen_h}+0+0")
+
+        self.transparent_key = "#000001"
+        if sys.platform == "win32":
+            try:
+                self.attributes("-transparentcolor", self.transparent_key)
+            except Exception:
+                pass
+        else:
+            self.transparent_key = "#0f172a"
+            try:
+                self.attributes("-alpha", 0.90)
+            except Exception:
+                pass
+        self.configure(fg_color=self.transparent_key)
+
+        self.canvas = tk.Canvas(self, width=screen_w, height=screen_h, bg=self.transparent_key, highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True)
+
+        self.screen_w = screen_w
+        self.screen_h = screen_h
+        self.res_scale = max(0.75, min(2.5, min(screen_w / 1920.0, screen_h / 1080.0)))
+        self.font_corr = getattr(ctk.ScalingTracker, "font_size_correction", 1.0)
+
+        self.bin_w = int(190 * self.res_scale)
+        self.bin_h = int(230 * self.res_scale)
+        self.bin_x = (screen_w - self.bin_w) // 2
+        self.bin_target_y = screen_h - self.bin_h - int(55 * self.res_scale)
+        self.bin_current_y = screen_h + int(60 * self.res_scale)
+        self.bin_shake_x = 0
+        self.bin_shake_y = 0
+
+        self.balls = []
+        self.sparkles = []
+        self._init_balls()
+
+        for key in ("<Escape>", "<space>", "<Return>"):
+            self.bind(key, lambda _e: self.skip_and_close())
+        self.canvas.bind("<Button-1>", lambda _e: self.skip_and_close())
+
+        self._step_bin_enter()
+
+    def _cfont(self, pt_size: int, bold: bool = True):
+        px = max(10, int(round(pt_size * 1.33 * self.res_scale * self.font_corr)))
+        return ("Segoe UI", -px, "bold") if bold else ("Segoe UI", -px)
+
+    def _init_balls(self):
+        s = self.res_scale
+        cx = self.bin_x + self.bin_w // 2
+        cy = self.bin_target_y + int(24 * s)
+        count = max(10, min(26, len(self.picked_students) if self.picked_students else 14))
+
+        for i in range(count):
+            # Yukarı ve sağa/sola yelpaze şeklinde fırlatma açısı
+            angle = random.uniform(-math.pi * 0.84, -math.pi * 0.16)
+            speed = random.uniform(18.0, 34.0) * s
+            label = self.picked_students[i % len(self.picked_students)] if self.picked_students else ""
+            if len(label) > 14:
+                label = label[:12] + ".."
+            self.balls.append({
+                "x": cx + random.uniform(-22 * s, 22 * s),
+                "y": cy + random.uniform(-10 * s, 10 * s),
+                "vx": math.cos(angle) * speed,
+                "vy": math.sin(angle) * speed,
+                "rot": random.uniform(0, 360),
+                "vrot": random.uniform(-28, 28),
+                "scale": random.uniform(0.85, 1.15),
+                "alpha": 1.0,
+                "delay": i // 5,
+                "active": False,
+                "vanished": False,
+                "label": label,
+            })
+
+    def _draw_trash_bin(self, bx, by, bw, bh):
+        bx, by, bw, bh = int(bx), int(by), int(bw), int(bh)
+        s = self.res_scale
+        self.canvas.create_oval(bx - int(12 * s), by + bh - int(14 * s), bx + bw + int(12 * s), by + bh + int(14 * s), fill="#020617", outline="")
+
+        inset = int(22 * s)
+        body_pts = [bx, by + int(20 * s), bx + bw, by + int(20 * s), bx + bw - inset, by + bh, bx + inset, by + bh]
+        self.canvas.create_polygon(body_pts, fill="#0f172a", outline="#38bdf8", width=2)
+
+        for step in range(1, 5):
+            ratio = step / 5.0
+            ly = by + int(20 * s) + int((bh - int(20 * s)) * ratio)
+            self.canvas.create_line(bx + inset * ratio, ly, bx + bw - inset * ratio, ly, fill="#334155", width=1.5)
+
+        center_x = bx + bw // 2
+        center_y = by + bh // 2 + int(10 * s)
+        self.canvas.create_text(center_x, center_y, text="♻", font=self._cfont(32, bold=False), fill="#38bdf8")
+        self.canvas.create_text(center_x, center_y + int(38 * s), text="LİSTE YENİLENDİ", font=self._cfont(8), fill="#4ade80")
+
+        self.canvas.create_oval(bx, by, bx + bw, by + int(40 * s), fill="#020617", outline="#38bdf8", width=3)
+
+    def _draw_paper_ball(self, b):
+        if not b["active"] or b["vanished"] or b["scale"] <= 0.08:
+            return
+        s = self.res_scale * b["scale"]
+        r = max(5, int(28 * s))
+        x, y, rot = b["x"], b["y"], b["rot"]
+
+        points = []
+        for i in range(10):
+            ang = math.radians(rot + i * 36)
+            rad = r + (int(5 * s) if i % 2 == 0 else -int(4 * s))
+            points.extend([x + rad * math.cos(ang), y + rad * math.sin(ang)])
+
+        self.canvas.create_polygon(points, fill="#fdfbf7", outline="#94a3b8", width=1.5)
+        self.canvas.create_line(x - r * 0.5, y - r * 0.2, x + r * 0.5, y + r * 0.3, fill="#ef4444", width=1.5)
+        if b["label"] and b["scale"] > 0.45:
+            self.canvas.create_text(x, y - r - int(10 * s), text=b["label"], font=self._cfont(8), fill="#38bdf8")
+
+    def _draw_scene(self):
+        self.canvas.delete("all")
+        s = self.res_scale
+
+        # Havadaki kağıt topları
+        for b in self.balls:
+            self._draw_paper_ball(b)
+
+        # Yok olma parıltıları
+        for sp in self.sparkles:
+            if sp["life"] > 0:
+                self.canvas.create_text(
+                    sp["x"], sp["y"], text=sp["char"], font=self._cfont(sp["size"]), fill=sp["color"]
+                )
+
+        # Çöp kovası
+        self._draw_trash_bin(
+            self.bin_x + self.bin_shake_x,
+            self.bin_current_y + self.bin_shake_y,
+            self.bin_w,
+            self.bin_h,
+        )
+
+    def _step_bin_enter(self):
+        start_y = self.screen_h + int(60 * self.res_scale)
+        total = 6
+        step = 0
+
+        def _tick():
+            nonlocal step
+            if self._is_closing:
+                return
+            step += 1
+            t = step / total
+            eased = 1.0 - (1.0 - t) ** 2
+            self.bin_current_y = start_y - eased * (start_y - self.bin_target_y)
+            self.bin_shake_x = int(math.sin(step * 2.4) * 6 * self.res_scale)
+            self._draw_scene()
+            if step < total:
+                self.after(14, _tick)
+            else:
+                self.bin_current_y = self.bin_target_y
+                self.bin_shake_x = 0
+                self._step_erupt_balls()
+
+        _tick()
+
+    def _step_erupt_balls(self):
+        if hasattr(self.sound, "play_trash_burst"):
+            self.sound.play_trash_burst()
+        else:
+            self.sound.play_reveal()
+
+        total_frames = 24
+        frame_idx = 0
+        s = self.res_scale
+        colors = ["#38bdf8", "#4ade80", "#facc15", "#f43f5e", "#ffffff"]
+
+        def _tick():
+            nonlocal frame_idx
+            if self._is_closing:
+                return
+            frame_idx += 1
+
+            # İlk karelerde kova sarsılsın
+            if frame_idx <= 8:
+                self.bin_shake_x = int(math.sin(frame_idx * 3.0) * 7 * s)
+                self.bin_shake_y = -int(abs(math.cos(frame_idx * 2.0)) * 8 * s)
+            else:
+                self.bin_shake_x = 0
+                self.bin_shake_y = 0
+
+            for b in self.balls:
+                if frame_idx >= b["delay"]:
+                    b["active"] = True
+                if not b["active"] or b["vanished"]:
+                    continue
+
+                b["x"] += b["vx"]
+                b["y"] += b["vy"]
+                b["vy"] += 1.05 * s  # Yerçekimi eğrisi
+                b["vx"] *= 0.985
+                b["rot"] += b["vrot"]
+
+                # Dışarı fırladıktan sonra küçülüp parıltıyla yok olsun
+                if frame_idx > b["delay"] + 8:
+                    b["scale"] -= 0.085
+                    if b["scale"] <= 0.12 and not b["vanished"]:
+                        b["vanished"] = True
+                        for _ in range(3):
+                            ang = random.uniform(0, 2 * math.pi)
+                            spd = random.uniform(2.5, 6.0) * s
+                            self.sparkles.append({
+                                "x": b["x"],
+                                "y": b["y"],
+                                "vx": math.cos(ang) * spd,
+                                "vy": math.sin(ang) * spd,
+                                "char": random.choice(["✦", "★", "•"]),
+                                "color": random.choice(colors),
+                                "size": random.randint(10, 15),
+                                "life": 1.0,
+                            })
+
+            for sp in self.sparkles:
+                if sp["life"] > 0:
+                    sp["x"] += sp["vx"]
+                    sp["y"] += sp["vy"]
+                    sp["life"] -= 0.16
+
+            # Son 5 karede çöp kovası aşağı kayarak kapansın
+            if frame_idx > total_frames - 5:
+                out_t = (frame_idx - (total_frames - 5)) / 5.0
+                self.bin_current_y = self.bin_target_y + (out_t ** 2) * (self.screen_h + int(80 * s) - self.bin_target_y)
+
+            self._draw_scene()
+            if frame_idx < total_frames:
+                self.after(15, _tick)
+            else:
+                self.skip_and_close()
+
+        _tick()
 
     def skip_and_close(self):
         if self._is_closing:
