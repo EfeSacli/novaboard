@@ -32,7 +32,7 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-CURRENT_VERSION = "1.2.1"
+CURRENT_VERSION = '1.2.1'
 GITHUB_REPO = "EfeSacli/novaboard"
 GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 RAW_SURUMLER_BASE = f"https://github.com/{GITHUB_REPO}/raw/main/surumler"
@@ -149,42 +149,111 @@ def _download_file(url: str, dest_path: str, on_progress=None, timeout: int = 30
                     on_progress(min(100, int(downloaded * 100 / total)))
 
 
+def _get_clean_env() -> dict:
+    """
+    PyInstaller --onefile çalışırken ortam değişkenlerine (_MEIPASS2, _MEIPASS, PATH içindeki _MEI klasörü vb.)
+    kendi geçici klasörünü yazar. Yeni indirilen .exe başlatılırken bu değişkenler temizlenmezse yeni .exe
+    kapanmakta olan eski .exe'nin silinen _MEI klasöründe python314.dll arar ve hata verir.
+    Bu fonksiyon tüm PyInstaller kalıntılarını temizler.
+    """
+    clean_env = os.environ.copy()
+    for key in ("_MEIPASS2", "_MEIPASS", "PYTHONPATH", "PYTHONHOME", "TCL_LIBRARY", "TK_LIBRARY"):
+        clean_env.pop(key, None)
+
+    old_mei = getattr(sys, "_MEIPASS", None)
+    path_val = clean_env.get("PATH", "")
+    if path_val:
+        parts = path_val.split(os.pathsep)
+        filtered = [
+            p for p in parts
+            if "_MEI" not in p and (not old_mei or os.path.normcase(old_mei) not in os.path.normcase(p))
+        ]
+        clean_env["PATH"] = os.pathsep.join(filtered)
+    return clean_env
+
+
 def _launch_downloaded_update_and_exit(downloaded_path: str):
     """
-    İndirilen yeni .exe dosyasını çalıştırır ve mevcut uygulamayı sys.exit(0) ile kapatır.
-    Eğer kullanıcı kurulumsuz (taşınabilir) tek dosya .exe çalıştırıyorsa ve indirilen dosya da
-    kurulumsuz .exe ise, mevcut .exe kapandıktan 1 sn sonra eski .exe'yi yenisiyle değiştirip başlatır.
+    İndirilen yeni .exe dosyasını hiçbir siyah CMD penceresi açmadan ve _MEIPASS2 DLL çakışması
+    yaşatmadan temiz ortam değişkenleriyle başlatır; eski taşınabilir .exe'yi yenisiyle değiştirir.
     """
+    clean_env = _get_clean_env()
+
     if sys.platform == "win32":
+        import shutil
         is_frozen = getattr(sys, "frozen", False)
         current_exe = os.path.abspath(sys.executable)
-        dl_name_lower = os.path.basename(downloaded_path).lower()
-        is_portable_update = "kurulumsuz" in dl_name_lower and downloaded_path.lower().endswith(".exe")
+        dl_name = os.path.basename(downloaded_path)
+        is_portable_update = "kurulumsuz" in dl_name.lower() and downloaded_path.lower().endswith(".exe")
+        no_win_flag = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        detach_flags = (
+            getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+        )
 
         if is_frozen and is_portable_update and os.path.exists(current_exe):
-            try:
-                # Mevcut taşınabilir .exe kapandıktan hemen sonra üzerine yazıp yeniden başlatan yardımcı betik
-                bat_path = os.path.join(tempfile.gettempdir(), "novaboard_self_update.bat")
-                with open(bat_path, "w", encoding="utf-8") as bf:
-                    bf.write(
-                        "@echo off\n"
-                        "timeout /t 1 /nobreak >nul\n"
-                        f'copy /y "{downloaded_path}" "{current_exe}" >nul\n'
-                        f'start "" "{current_exe}"\n'
-                        'del "%~f0"\n'
+            cur_dir = os.path.dirname(current_exe)
+            target_exe = os.path.join(cur_dir, dl_name)
+
+            # Eğer dosya adı yeni sürüm numarası içeriyorsa (örn: v1.1.0 -> v1.2.1), aynı klasöre doğrudan kopyala ve başlat
+            if os.path.normcase(target_exe) != os.path.normcase(current_exe):
+                try:
+                    shutil.copy2(downloaded_path, target_exe)
+                    subprocess.Popen(
+                        [target_exe],
+                        env=clean_env,
+                        cwd=cur_dir,
+                        close_fds=True,
+                        creationflags=detach_flags,
                     )
-                os.startfile(bat_path)
-                sys.exit(0)
+                    # Eski sürüm .exe kapandıktan 3 sn sonra arka planda görünmez olarak eski dosyayı temizle
+                    subprocess.Popen(
+                        ["cmd.exe", "/c", f'ping 127.0.0.1 -n 4 >nul & del /f /q "{current_exe}" >nul 2>&1'],
+                        env=clean_env,
+                        cwd=cur_dir,
+                        close_fds=True,
+                        creationflags=no_win_flag,
+                    )
+                    os._exit(0)
+                except Exception:
+                    pass
+
+            # Aynı dosya adına sahipse, kapandıktan sonra üzerine yazıp başlatan tamamen görünmez (CREATE_NO_WINDOW) komut
+            try:
+                cmd_line = (
+                    f'set "_MEIPASS2=" & set "_MEIPASS=" & '
+                    f'ping 127.0.0.1 -n 3 >nul & '
+                    f'copy /y "{downloaded_path}" "{current_exe}" >nul & '
+                    f'start "" "{current_exe}"'
+                )
+                subprocess.Popen(
+                    ["cmd.exe", "/c", cmd_line],
+                    env=clean_env,
+                    cwd=cur_dir,
+                    close_fds=True,
+                    creationflags=no_win_flag,
+                )
+                os._exit(0)
             except Exception:
                 pass
 
-        # Kurulumlu (.exe) veya standart çalıştırma: doğrudan os.startfile ile başlat ve çık
-        os.startfile(downloaded_path)
-        sys.exit(0)
+        # Kurulumlu (.exe) veya standart çalıştırma: temiz ortamla doğrudan başlat ve çık
+        subprocess.Popen(
+            [downloaded_path],
+            env=clean_env,
+            cwd=os.path.dirname(downloaded_path),
+            close_fds=True,
+            creationflags=detach_flags,
+        )
+        os._exit(0)
     else:
-        # Pardus / Linux için indirilen paketi aç ve çık
-        subprocess.Popen(["xdg-open", downloaded_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        sys.exit(0)
+        subprocess.Popen(
+            ["xdg-open", downloaded_path],
+            env=clean_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        os._exit(0)
 
 
 class AutoUpdater:
