@@ -6,7 +6,7 @@ import customtkinter as ctk
 
 from notebook_overlay import NotebookRevealOverlay, TrashResetOverlay
 from ui_kit import (
-    ThemedMixin, font, set_window_icon,
+    ThemedMixin, font, mono_font, set_window_icon,
     BTN_ACCENT, BTN_SUCCESS, BTN_INNER,
     CARD, OPTION_MENU_INNER,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_ACCENT,
@@ -78,21 +78,21 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
     # =========================================================================
     def _setup_ui(self):
         self.main_container = self.styled(
-            ctk.CTkFrame(self, corner_radius=10, border_width=1.5), fg_color="bg_main", border_color="border"
+            ctk.CTkFrame(self, corner_radius=6, border_width=1), fg_color="bg_main", border_color="border"
         )
         self.main_container.pack(fill="both", expand=True)
 
         # 1. Sol kenar çekmece açma/kapama kulbu
         self.handle_frame = self.styled(
-            ctk.CTkFrame(self.main_container, width=self.collapsed_width - 4, corner_radius=8), fg_color="bg_sidebar"
+            ctk.CTkFrame(self.main_container, width=self.collapsed_width - 4, corner_radius=4), fg_color="bg_sidebar"
         )
         self.handle_frame.pack(side="left", fill="y", padx=2, pady=2)
         self.handle_frame.pack_propagate(False)
 
         self.collapsed_drag = self.styled(
             ctk.CTkLabel(
-                self.handle_frame, text="✥", width=self.collapsed_width - 8, height=16,
-                font=font(12, bold=True), cursor="fleur",
+                self.handle_frame, text="::", width=self.collapsed_width - 8, height=16,
+                font=mono_font(11, bold=True), cursor="fleur",
             ),
             TEXT_ACCENT,
         )
@@ -100,8 +100,8 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
 
         self.toggle_btn = self.styled(
             ctk.CTkButton(
-                self.handle_frame, text="▶\n\nN\nO\nV\nA", width=self.collapsed_width - 8, corner_radius=6,
-                font=font(10, bold=True), command=self.toggle_collapse,
+                self.handle_frame, text="▶\n\nN\nO\nV\nA", width=self.collapsed_width - 8, corner_radius=4,
+                font=mono_font(10, bold=True), command=self.toggle_collapse,
             ),
             BTN_ACCENT,
         )
@@ -112,16 +112,16 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
         self.content_panel.pack(side="left", fill="both", expand=True, padx=(2, 4), pady=2)
 
         self.header_frame = self.styled(
-            ctk.CTkFrame(self.content_panel, corner_radius=6, border_width=1, height=28), CARD
+            ctk.CTkFrame(self.content_panel, corner_radius=4, border_width=1, height=28), CARD
         )
         self.header_frame.pack(fill="x", pady=(2, 3))
         self.header_frame.pack_propagate(False)
 
         self.drag_grip = self.styled(
-            ctk.CTkLabel(self.header_frame, text="✥ Taşı", height=22, font=font(10, bold=True), cursor="fleur"),
+            ctk.CTkLabel(self.header_frame, text="::", height=22, font=mono_font(10, bold=True), cursor="fleur"),
             TEXT_ACCENT,
         )
-        self.drag_grip.pack(side="left", padx=(3, 2), pady=3)
+        self.drag_grip.pack(side="left", padx=(4, 2), pady=3)
 
         self.class_var = ctk.StringVar(value=self.dm.get_active_class())
         class_names = self.dm.get_class_names() or ["Sınıf Yok"]
@@ -131,27 +131,28 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
                 values=class_names,
                 variable=self.class_var,
                 command=self._on_class_changed,
-                width=82,
+                width=78,
                 height=22,
-                font=font(10, bold=True),
-                dropdown_font=font(10),
+                corner_radius=4,
+                font=mono_font(10, bold=True),
+                dropdown_font=mono_font(10),
             ),
             OPTION_MENU_INNER,
             dropdown_fg_color="bg_card",
             dropdown_text_color="text_primary",
             dropdown_hover_color="bg_hover",
         )
-        self.class_dropdown.pack(side="left", padx=(3, 2), pady=3)
+        self.class_dropdown.pack(side="left", padx=(2, 2), pady=3)
 
         self.stats_label = self.styled(
-            ctk.CTkLabel(self.header_frame, text="0 / 0", font=font(10, bold=True)), TEXT_ACCENT
+            ctk.CTkLabel(self.header_frame, text="0/0", font=mono_font(10, bold=True)), TEXT_ACCENT
         )
         self.stats_label.pack(side="left", padx=3)
 
         self.close_btn = self.styled(
             ctk.CTkButton(
-                self.header_frame, text="X", width=24, height=22, font=font(10, bold=True), fg_color="transparent",
-                command=self._go_to_main,
+                self.header_frame, text="✕", width=22, height=22, corner_radius=3, font=mono_font(10, bold=True),
+                fg_color="transparent", command=self._go_to_main,
             ),
             hover_color="danger_bg", text_color="text_secondary",
         )
@@ -159,35 +160,35 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
 
         self.settings_btn = self.styled(
             ctk.CTkButton(
-                self.header_frame, text="Panel", width=42, height=22, corner_radius=4, font=font(9, bold=True),
+                self.header_frame, text="PANEL", width=42, height=22, corner_radius=3, font=mono_font(9, bold=True),
                 border_width=1, command=self._go_to_main,
             ),
             BTN_INNER,
         )
-        self.settings_btn.pack(side="right", padx=2, pady=3)
+        self.settings_btn.pack(side="right", padx=1, pady=3)
 
         self.pen_btn = self.styled(
             ctk.CTkButton(
-                self.header_frame, text="Kalem", width=44, height=22, corner_radius=4, font=font(9, bold=True),
+                self.header_frame, text="KALEM", width=44, height=22, corner_radius=3, font=mono_font(9, bold=True),
                 border_width=1, command=self._toggle_pen,
             ),
             BTN_INNER,
         )
-        self.pen_btn.pack(side="right", padx=2, pady=3)
+        self.pen_btn.pack(side="right", padx=1, pady=3)
 
         # İsim gösterim kartı
         self.card_frame = self.styled(
-            ctk.CTkFrame(self.content_panel, corner_radius=6, border_width=1, height=54), CARD
+            ctk.CTkFrame(self.content_panel, corner_radius=4, border_width=1, height=54), CARD
         )
         self.card_frame.pack(fill="x", pady=2)
         self.card_frame.pack_propagate(False)
 
         self.name_label = self.styled(
-            ctk.CTkLabel(self.card_frame, text="Öğrenci Seçimi", font=font(13, bold=True)), TEXT_PRIMARY
+            ctk.CTkLabel(self.card_frame, text="READY // SEÇİM BEKLENİYOR", font=font(13, bold=True)), TEXT_PRIMARY
         )
         self.name_label.pack(expand=True, pady=(2, 0))
 
-        self.sub_label = self.styled(ctk.CTkLabel(self.card_frame, text="", font=font(9)), TEXT_SECONDARY)
+        self.sub_label = self.styled(ctk.CTkLabel(self.card_frame, text="", font=mono_font(9)), TEXT_SECONDARY)
         self.sub_label.pack(pady=(0, 2))
 
         # Eylem butonları
@@ -196,7 +197,7 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
 
         self.pick_button = self.styled(
             ctk.CTkButton(
-                self.actions_frame, text="Öğrenci Seç", height=28, corner_radius=4, font=font(11, bold=True),
+                self.actions_frame, text="ÖĞRENCİ SEÇ", height=28, corner_radius=4, font=font(11, bold=True),
                 command=self.start_pick,
             ),
             BTN_ACCENT,
@@ -205,21 +206,21 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
 
         self.undo_btn = self.styled(
             ctk.CTkButton(
-                self.actions_frame, text="Geri Al", width=56, height=28, corner_radius=4, font=font(10, bold=True),
+                self.actions_frame, text="GERİ", width=46, height=28, corner_radius=4, font=mono_font(9, bold=True),
                 border_width=1, command=self._undo_last,
             ),
             BTN_INNER,
         )
-        self.undo_btn.pack(side="left", padx=2)
+        self.undo_btn.pack(side="left", padx=1)
 
         self.reset_btn = self.styled(
             ctk.CTkButton(
-                self.actions_frame, text="Sıfırla", width=56, height=28, corner_radius=4, font=font(10, bold=True),
+                self.actions_frame, text="SIFIRLA", width=54, height=28, corner_radius=4, font=mono_font(9, bold=True),
                 border_width=1, command=self._confirm_manual_reset,
             ),
             BTN_INNER,
         )
-        self.reset_btn.pack(side="left", padx=(2, 0))
+        self.reset_btn.pack(side="left", padx=(1, 0))
 
     def _bind_events(self):
         self.bind("<FocusOut>", lambda e: self._ensure_topmost_lock())

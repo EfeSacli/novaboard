@@ -973,7 +973,10 @@ class VocabularyGameFrame(ThemedMixin, ctk.CTkFrame):
             self.feedback_label.configure(
                 text=f"❌ Yanlış! (-5 Puan)  Doğru Cevap: {correct_text}", text_color=t["danger"]
             )
-            self.sound.play_tick()
+            if hasattr(self.sound, "play_error"):
+                self.sound.play_error()
+            else:
+                self.sound.play_tick()
 
         self._update_live_score_display()
 

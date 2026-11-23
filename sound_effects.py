@@ -98,45 +98,53 @@ class SoundPlayer:
 
     def _build_sound_cache(self):
         try:
-            # 1. Tık sesi: Çok hafif, sakin ahşap dokunuşu
+            # 1. Stream / Yazım / Seçim Tıkırtısı: 150Hz-380Hz arası kısa mekanik röle/anahtar darbesi
             self._cache["tick"] = _synthesize_wav([
-                ((340.0, 260.0), 0.032, 0.11, 0.004, 0.08),
+                ((330.0, 155.0), 0.018, 0.10, 0.002, 0.12),
             ])
-            # 2. Öğrenci seçimi / Doğru cevap: Sakin, sıcak 2 notalı yumuşak marimba (C4 -> G4)
+            # 2. Onay / Tamamlanma Sesi: Fiziksel mekanik anahtarın kapanma hissi veren kısa, tok "click/thud"
             self._cache["reveal"] = _synthesize_wav([
-                (293.66, 0.095, 0.16, 0.010, 0.12),  # D4
-                (440.00, 0.240, 0.18, 0.012, 0.10),  # A4
+                ((190.0, 88.0), 0.036, 0.18, 0.002, 0.15),
+                ((380.0, 210.0), 0.024, 0.12, 0.001, 0.10),
             ])
-            # 3. Kağıt buruşturma: Çok hafif, rahatsız etmeyen yumuşak kağıt hışırtısı
+            # 3. Hata / Uyarı Sesi: Düşük frekanslı, kısa mekanik uyarı tonu
+            self._cache["error"] = _synthesize_wav([
+                ((145.0, 108.0), 0.042, 0.16, 0.003, 0.25),
+                (0, 0.016, 0.0),
+                ((135.0, 98.0), 0.045, 0.16, 0.003, 0.25),
+            ])
+            # 4. Kağıt buruşturma: Kuru, mekanik dokulu kısa kağıt hışırtısı
             self._cache["crumple"] = _synthesize_wav([
-                (-1, 0.045, 0.08, 0.008, 0.0),
-                (0, 0.015, 0.0),
-                (-1, 0.055, 0.09, 0.008, 0.0),
-                (0, 0.012, 0.0),
-                (-1, 0.045, 0.07, 0.008, 0.0),
+                (-1, 0.032, 0.07, 0.004, 0.0),
+                (0, 0.010, 0.0),
+                (-1, 0.038, 0.08, 0.004, 0.0),
+                (0, 0.010, 0.0),
+                (-1, 0.030, 0.06, 0.004, 0.0),
             ])
-            # 4. Çöp kovasına düşüş: Yumuşak, tok akustik düşüş
+            # 5. Çöp kovasına düşüş: Tok, kuru mekanik "thud"
             self._cache["trash_swish"] = _synthesize_wav([
-                ((260.0, 145.0), 0.090, 0.16, 0.006, 0.10),
-                (392.00, 0.140, 0.13, 0.010, 0.08),
+                ((220.0, 110.0), 0.055, 0.18, 0.003, 0.12),
+                ((310.0, 180.0), 0.035, 0.12, 0.002, 0.08),
             ])
-            # 5. Çöp kovası boşaltma / çöplerin dışarı fırlaması: Yumuşak yükselen esinti
+            # 6. Çöp kovası boşaltma: Kuru mekanik röle serisi
             self._cache["trash_burst"] = _synthesize_wav([
-                ((180.0, 420.0), 0.140, 0.15, 0.012, 0.10),
-                (0, 0.020, 0.0),
-                (523.25, 0.180, 0.14, 0.012, 0.08),
+                ((160.0, 320.0), 0.045, 0.15, 0.003, 0.12),
+                (0, 0.012, 0.0),
+                ((240.0, 390.0), 0.040, 0.14, 0.002, 0.10),
             ])
-            # 6. Süre bitimi: Kulağı tırmalamayan sakin, sıcak meditasyon zili (A4 -> E5)
+            # 7. Süre bitimi: Mekanik çift darbeli düşük-orta frekanslı tok uyarı
             self._cache["timer_alarm"] = _synthesize_wav([
-                (440.00, 0.220, 0.18, 0.015, 0.14),
-                (0, 0.040, 0.0),
-                (587.33, 0.360, 0.18, 0.015, 0.12),
+                ((320.0, 220.0), 0.065, 0.18, 0.003, 0.14),
+                (0, 0.035, 0.0),
+                ((320.0, 220.0), 0.085, 0.18, 0.003, 0.14),
             ])
-            # 7. Tur tamamlandı: Yumuşak, huzurlu akor geçişi (C4 -> E4 -> G4)
+            # 8. Tur tamamlandı: Üç kademeli mekanik kilit/onay sesi
             self._cache["complete_fanfare"] = _synthesize_wav([
-                (261.63, 0.110, 0.15, 0.012, 0.10),
-                (329.63, 0.110, 0.16, 0.012, 0.10),
-                (392.00, 0.300, 0.17, 0.014, 0.10),
+                ((220.0, 140.0), 0.035, 0.14, 0.002, 0.10),
+                (0, 0.012, 0.0),
+                ((280.0, 180.0), 0.035, 0.15, 0.002, 0.10),
+                (0, 0.012, 0.0),
+                ((360.0, 220.0), 0.055, 0.18, 0.002, 0.12),
             ])
 
             if not HAS_WINSOUND:
@@ -152,6 +160,16 @@ class SoundPlayer:
 
     def is_enabled(self):
         return bool(self.dm.get_setting("sound_enabled", True))
+
+    def toggle_audio(self) -> bool:
+        new_state = not self.is_enabled()
+        self.dm.set_setting("sound_enabled", new_state)
+        if new_state:
+            self.play_reveal()
+        return new_state
+
+    def play_error(self):
+        self._play_cached("error")
 
     def _play_cached(self, key):
         if not self.is_enabled():

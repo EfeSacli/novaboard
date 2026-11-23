@@ -6,37 +6,71 @@ import customtkinter as ctk
 THEMES = {
     "dark": {
         "id": "dark",
-        "name": "Koyu Tema (Klasik)",
+        "name": "Linear Carbon (Zümrüt Monokrom)",
         "appearance_mode": "Dark",
-        "bg_main": "#111827",          # Slate 900
-        "bg_sidebar": "#1f2937",       # Slate 800
-        "bg_card": "#1f2937",          # Slate 800
-        "bg_card_inner": "#111827",    # Slate 900
-        "bg_hover": "#374151",         # Slate 700
-        "border": "#374151",           # Slate 700
-        "text_primary": "#f9fafb",     # Slate 50
-        "text_secondary": "#9ca3af",   # Slate 400
-        "text_muted": "#6b7280",       # Slate 500
-        "accent": "#0284c7",           # Sky 600
-        "accent_hover": "#0369a1",     # Sky 700
-        "accent_text": "#ffffff",
-        "input_bg": "#111827",
-        "input_border": "#374151",
-        "input_text": "#f9fafb",
-        "success": "#16a34a",          # Green 600
-        "success_hover": "#15803d",
-        "success_bg": "#14532d",
-        "success_text": "#86efac",
-        "danger": "#dc2626",           # Red 600
-        "danger_hover": "#b91c1c",
+        "bg_main": "#09090b",          # Zinc 950
+        "bg_sidebar": "#121214",       # Carbon 900
+        "bg_card": "#121214",          # Carbon 900
+        "bg_card_inner": "#18181b",    # Zinc 900
+        "bg_hover": "#27272a",         # Zinc 800
+        "border": "#27272a",           # 1px Zinc 800
+        "text_primary": "#fafafa",     # Zinc 50
+        "text_secondary": "#a1a1aa",   # Zinc 400
+        "text_muted": "#71717a",       # Zinc 500
+        "accent": "#10b981",           # Sharp Emerald 500
+        "accent_hover": "#059669",     # Emerald 600
+        "accent_text": "#09090b",
+        "input_bg": "#121214",
+        "input_border": "#27272a",
+        "input_text": "#fafafa",
+        "success": "#10b981",          # Emerald 500
+        "success_hover": "#059669",
+        "success_bg": "#052e16",
+        "success_text": "#6ee7b7",
+        "danger": "#ef4444",           # Red 500
+        "danger_hover": "#dc2626",
         "danger_bg": "#450a0a",
         "danger_text": "#fca5a5",
-        "badge_remaining_bg": "#14532d",
-        "badge_remaining_text": "#86efac",
-        "badge_picked_bg": "#374151",
-        "badge_picked_text": "#9ca3af",
+        "badge_remaining_bg": "#052e16",
+        "badge_remaining_text": "#6ee7b7",
+        "badge_picked_bg": "#27272a",
+        "badge_picked_text": "#a1a1aa",
         "badge_exempt_bg": "#451a03",
-        "badge_exempt_text": "#fde68a",
+        "badge_exempt_text": "#fcd34d",
+    },
+    "amber": {
+        "id": "amber",
+        "name": "Claude Code (Terminal Amber)",
+        "appearance_mode": "Dark",
+        "bg_main": "#09090b",          # Zinc 950
+        "bg_sidebar": "#121214",       # Carbon 900
+        "bg_card": "#121214",          # Carbon 900
+        "bg_card_inner": "#18181b",    # Zinc 900
+        "bg_hover": "#27272a",         # Zinc 800
+        "border": "#27272a",           # 1px Zinc 800
+        "text_primary": "#fafafa",     # Zinc 50
+        "text_secondary": "#a1a1aa",   # Zinc 400
+        "text_muted": "#71717a",       # Zinc 500
+        "accent": "#f59e0b",           # Terminal Amber 500
+        "accent_hover": "#d97706",     # Amber 600
+        "accent_text": "#09090b",
+        "input_bg": "#121214",
+        "input_border": "#27272a",
+        "input_text": "#fafafa",
+        "success": "#10b981",
+        "success_hover": "#059669",
+        "success_bg": "#052e16",
+        "success_text": "#6ee7b7",
+        "danger": "#ef4444",
+        "danger_hover": "#dc2626",
+        "danger_bg": "#450a0a",
+        "danger_text": "#fca5a5",
+        "badge_remaining_bg": "#052e16",
+        "badge_remaining_text": "#6ee7b7",
+        "badge_picked_bg": "#27272a",
+        "badge_picked_text": "#a1a1aa",
+        "badge_exempt_bg": "#451a03",
+        "badge_exempt_text": "#fcd34d",
     },
     "light": {
         "id": "light",

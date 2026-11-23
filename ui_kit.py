@@ -26,8 +26,16 @@ def get_resource_path(relative_path):
     return relative_path
 
 
+MONO_FAMILY = "Consolas" if sys.platform == "win32" else "DejaVu Sans Mono"
+
+
 def font(size, bold=False, family="Segoe UI", **kwargs):
     return ctk.CTkFont(family=family, size=size, weight="bold" if bold else "normal", **kwargs)
+
+
+def mono_font(size, bold=False, **kwargs):
+    """Sayısal veriler, loglar, sayaçlar, rozetler ve diff satırları için monospaced font."""
+    return ctk.CTkFont(family=MONO_FAMILY, size=size, weight="bold" if bold else "normal", **kwargs)
 
 
 # --- Stil şablonları ---------------------------------------------------------
