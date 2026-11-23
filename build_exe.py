@@ -131,9 +131,50 @@ def _add_package_tree_to_tar(tar, src_dir, target_root):
             _add_bytes_to_tar(tar, f"{target_root}/{rel}", raw, 0o644)
 
 
-def make_deb_package(output_deb_path):
+def get_current_version():
+    try:
+        with open("auto_updater.py", "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip().startswith("CURRENT_VERSION"):
+                    return line.split("=", 1)[1].strip().strip("\"'")
+    except Exception:
+        pass
+    return "1.2.0"
+
+
+def sync_version_metadata(ver_str):
+    """version_info.txt ve setup.iss içindeki sürüm numaralarını CURRENT_VERSION ile eşitler."""
+    nums = [int(x) for x in ver_str.split(".") if x.isdigit()]
+    while len(nums) < 4:
+        nums.append(0)
+    tuple_str = f"({nums[0]}, {nums[1]}, {nums[2]}, {nums[3]})"
+    dot4_str = f"{nums[0]}.{nums[1]}.{nums[2]}.{nums[3]}"
+
+    if os.path.exists("version_info.txt"):
+        with open("version_info.txt", "r", encoding="utf-8") as f:
+            vtxt = f.read()
+        import re
+        vtxt = re.sub(r"filevers=\(\d+,\s*\d+,\s*\d+,\s*\d+\)", f"filevers={tuple_str}", vtxt)
+        vtxt = re.sub(r"prodvers=\(\d+,\s*\d+,\s*\d+,\s*\d+\)", f"prodvers={tuple_str}", vtxt)
+        vtxt = re.sub(r"StringStruct\('FileVersion',\s*'[^']+'\)", f"StringStruct('FileVersion', '{dot4_str}')", vtxt)
+        vtxt = re.sub(r"StringStruct\('ProductVersion',\s*'[^']+'\)", f"StringStruct('ProductVersion', '{dot4_str}')", vtxt)
+        with open("version_info.txt", "w", encoding="utf-8") as f:
+            f.write(vtxt)
+
+    if os.path.exists("setup.iss"):
+        with open("setup.iss", "r", encoding="utf-8") as f:
+            iss = f.read()
+        import re
+        iss = re.sub(r'#define MyAppVersion "[^"]+"', f'#define MyAppVersion "{ver_str}"', iss)
+        iss = re.sub(r"VersionInfoProductVersion=\d+\.\d+\.\d+\.\d+", f"VersionInfoProductVersion={dot4_str}", iss)
+        iss = re.sub(r"VersionInfoVersion=\d+\.\d+\.\d+\.\d+", f"VersionInfoVersion={dot4_str}", iss)
+        with open("setup.iss", "w", encoding="utf-8") as f:
+            f.write(iss)
+
+
+def make_deb_package(output_deb_path, ver_str="1.2.0"):
     """MEB Fatih Akıllı Tahta (Pardus ETAP / Debian) uyumlu .deb paketini oluşturur."""
-    print("  -> Pardus ETAP .deb paketi oluşturuluyor...")
+    print(f"  -> Pardus ETAP .deb paketi (v{ver_str}) oluşturuluyor...")
     deb_binary = b"2.0\n"
 
     # 1. control.tar.gz
@@ -141,7 +182,7 @@ def make_deb_package(output_deb_path):
     with tarfile.open(fileobj=ctrl_buf, mode="w:gz") as tar:
         ctrl_content = (
             "Package: novaboard\n"
-            "Version: 1.2.0\n"
+            f"Version: {ver_str}\n"
             "Section: education\n"
             "Priority: optional\n"
             "Architecture: all\n"
@@ -238,9 +279,11 @@ def make_deb_package(output_deb_path):
     print(f"  -> {output_deb_path} hazır ({os.path.getsize(output_deb_path)} bayt).")
 
 
-def build_pardus_packages():
-    """Pardus ETAP .deb ve kurulumsuz .zip paketlerini üretir."""
-    os.makedirs(SURUMLER_DIR, exist_ok=True)
+def build_pardus_packages(ver_str=None, out_dir=None):
+    """Pardus ETAP .deb ve kurulumsuz .zip paketlerini ilgili sürüm klasörüne üretir."""
+    ver_str = ver_str or get_current_version()
+    out_dir = out_dir or os.path.join(SURUMLER_DIR, f"v{ver_str}")
+    os.makedirs(out_dir, exist_ok=True)
 
     for sh_file in ["baslat.sh", "kurulum_pardus.sh", "novaboard.desktop"]:
         if os.path.exists(sh_file):
@@ -249,7 +292,7 @@ def build_pardus_packages():
             with open(sh_file, "wb") as f:
                 f.write(data)
 
-    make_deb_package(os.path.join(SURUMLER_DIR, "Novaboard-Pardus-Kurulumlu-v1.0.deb"))
+    make_deb_package(os.path.join(out_dir, f"Novaboard-Pardus-Kurulumlu-v{ver_str}.deb"), ver_str=ver_str)
 
     temp_p = "temp_pardus_package"
     shutil.rmtree(temp_p, ignore_errors=True)
@@ -272,20 +315,25 @@ def build_pardus_packages():
                 os.path.join(temp_p, pure_pkg),
                 ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"),
             )
-    out_zip = os.path.join(SURUMLER_DIR, "Novaboard-Pardus-Kurulumsuz-v1.0.zip")
+    out_zip = os.path.join(out_dir, f"Novaboard-Pardus-Kurulumsuz-v{ver_str}.zip")
     zip_directory(temp_p, out_zip, "Novaboard")
     shutil.rmtree(temp_p, ignore_errors=True)
     print(f"  -> {out_zip} hazır.")
 
 
 def build_all():
-    print("=" * 60)
-    print("   NOVABOARD TAM DAĞITIM VE DERLEME SİHİRBAZI")
-    print("=" * 60)
-    os.makedirs(SURUMLER_DIR, exist_ok=True)
+    ver_str = get_current_version()
+    sync_version_metadata(ver_str)
+    ver_dir = os.path.join(SURUMLER_DIR, f"v{ver_str}")
+    os.makedirs(ver_dir, exist_ok=True)
 
-    # 1. Tek Dosya EXE (Novaboard-Windows-Kurulumsuz-v1.0.exe)
-    print("\n[1/4] Tek dosya taşınabilir Novaboard-Windows-Kurulumsuz-v1.0.exe derleniyor...")
+    print("=" * 60)
+    print(f"   NOVABOARD v{ver_str} TAM DAĞITIM VE DERLEME SİHİRBAZI")
+    print("=" * 60)
+
+    # 1. Tek Dosya EXE
+    portable_exe_name = f"Novaboard-Windows-Kurulumsuz-v{ver_str}.exe"
+    print(f"\n[1/4] Tek dosya taşınabilir {portable_exe_name} derleniyor...")
     res_onefile = subprocess.run([sys.executable, "-m", "PyInstaller", "--onefile", *PYINSTALLER_COMMON_ARGS])
     exe_src = os.path.join("dist", "Novaboard.exe")
     if res_onefile.returncode != 0 or not os.path.exists(exe_src):
@@ -293,11 +341,12 @@ def build_all():
         return False
 
     shutil.copy2(exe_src, "Novaboard.exe")  # Inno Setup için geçici kopya
-    shutil.copy2(exe_src, os.path.join(SURUMLER_DIR, "Novaboard-Windows-Kurulumsuz-v1.0.exe"))
-    print("  -> surumler/Novaboard-Windows-Kurulumsuz-v1.0.exe hazır.")
+    shutil.copy2(exe_src, os.path.join(ver_dir, portable_exe_name))
+    print(f"  -> {ver_dir}/{portable_exe_name} hazır.")
 
-    # 2. Windows Kurulum Sihirbazı (Novaboard-Windows-Kurulumlu-v1.0.exe)
-    print("\n[2/4] Inno Setup ile Novaboard-Windows-Kurulumlu-v1.0.exe derleniyor...")
+    # 2. Windows Kurulum Sihirbazı
+    setup_exe_name = f"Novaboard-Windows-Kurulumlu-v{ver_str}.exe"
+    print(f"\n[2/4] Inno Setup ile {setup_exe_name} derleniyor...")
     iscc_candidates = [
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Inno Setup 6", "ISCC.exe"),
         r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
@@ -306,36 +355,32 @@ def build_all():
     iscc_path = next((p for p in iscc_candidates if os.path.exists(p)), None)
     if iscc_path and os.path.exists("setup.iss"):
         if subprocess.run([iscc_path, "setup.iss"]).returncode == 0 and os.path.exists("Novaboard_Kurulum.exe"):
-            shutil.copy2("Novaboard_Kurulum.exe", os.path.join(SURUMLER_DIR, "Novaboard-Windows-Kurulumlu-v1.0.exe"))
-            print("  -> surumler/Novaboard-Windows-Kurulumlu-v1.0.exe hazır.")
+            shutil.copy2("Novaboard_Kurulum.exe", os.path.join(ver_dir, setup_exe_name))
+            print(f"  -> {ver_dir}/{setup_exe_name} hazır.")
     else:
         print("  [UYARI] Inno Setup bulunamadı, kurulum sihirbazı atlandı.")
 
-    # 3. Önceden Kurulmuş Windows Klasörü (Novaboard-Windows-Kurulumsuz-v1.0.zip)
-    print("\n[3/4] Kurulumsuz hazır Windows klasörü (onedir) oluşturuluyor...")
+    # 3. Önceden Kurulmuş Windows Klasörü (.zip)
+    win_zip_name = f"Novaboard-Windows-Kurulumsuz-v{ver_str}.zip"
+    print(f"\n[3/4] Kurulumsuz hazır Windows klasörü ({win_zip_name}) oluşturuluyor...")
     res_onedir = subprocess.run([sys.executable, "-m", "PyInstaller", "--onedir", *PYINSTALLER_COMMON_ARGS])
     onedir_output = os.path.join("dist", "Novaboard")
     if res_onedir.returncode == 0 and os.path.exists(onedir_output):
         for extra in WINDOWS_EXTRA_FILES + APP_SOURCE_FILES:
             if os.path.exists(extra):
                 shutil.copy2(extra, onedir_output)
-        win_zip = os.path.join(SURUMLER_DIR, "Novaboard-Windows-Kurulumsuz-v1.0.zip")
+        win_zip = os.path.join(ver_dir, win_zip_name)
         zip_directory(onedir_output, win_zip, "Novaboard")
         print(f"  -> {win_zip} hazır.")
 
     # 4. Pardus ETAP / Linux Paketleri (.deb ve .zip)
-    print("\n[4/4] Pardus ETAP (MEB Akıllı Tahta) paketleri hazırlanıyor...")
-    build_pardus_packages()
+    print(f"\n[4/4] Pardus ETAP (MEB Akıllı Tahta) v{ver_str} paketleri hazırlanıyor...")
+    build_pardus_packages(ver_str=ver_str, out_dir=ver_dir)
 
     clean_temp_files()
-    if os.path.exists(os.path.join(SURUMLER_DIR, "Baslat_Windows.vbs")):
-        try:
-            os.remove(os.path.join(SURUMLER_DIR, "Baslat_Windows.vbs"))
-        except Exception:
-            pass
 
     print("\n" + "=" * 60)
-    print("   TÜM 5 SÜRÜM surumler/ KLASÖRÜNDE HAZIRLANDI")
+    print(f"   TÜM 5 SÜRÜM {ver_dir}/ KLASÖRÜNDE HAZIRLANDI")
     print("=" * 60)
     return True
 

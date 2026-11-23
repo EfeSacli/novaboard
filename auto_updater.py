@@ -32,7 +32,7 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-CURRENT_VERSION = "1.2.0"
+CURRENT_VERSION = '1.2.0'
 GITHUB_REPO = "EfeSacli/novaboard"
 GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 RAW_SURUMLER_BASE = f"https://github.com/{GITHUB_REPO}/raw/main/surumler"
@@ -78,6 +78,9 @@ def _select_best_asset(release_data: dict) -> tuple:
     Dönüş: (download_url, filename)
     """
     assets = release_data.get("assets") or []
+    remote_tag = (release_data.get("tag_name") or "v1.2.0").strip()
+    ver_num = remote_tag.lstrip("vV") or "1.2.0"
+    v_folder = f"v{ver_num}"
     is_win = sys.platform == "win32"
 
     if is_win:
@@ -99,17 +102,17 @@ def _select_best_asset(release_data: dict) -> tuple:
         if zip_assets:
             return zip_assets[0].get("browser_download_url"), zip_assets[0].get("name")
 
-        # Release'e dosya eklenmemişse (sadece metin/tag açılmışsa) doğrudan surumler/ altındaki .exe'yi indir
-        fallback_name = "Novaboard-Windows-Kurulumlu-v1.0.exe" if is_installed else "Novaboard-Windows-Kurulumsuz-v1.0.exe"
-        return f"{RAW_SURUMLER_BASE}/{fallback_name}", fallback_name
+        # Release'e dosya eklenmemişse doğrudan surumler/vX.Y.Z/ altındaki .exe'yi indir
+        fallback_name = f"Novaboard-Windows-Kurulumlu-v{ver_num}.exe" if is_installed else f"Novaboard-Windows-Kurulumsuz-v{ver_num}.exe"
+        return f"{RAW_SURUMLER_BASE}/{v_folder}/{fallback_name}", fallback_name
 
     else:
         # Pardus / Linux
         deb_assets = [a for a in assets if a.get("name", "").lower().endswith(".deb")]
         if deb_assets:
             return deb_assets[0].get("browser_download_url"), deb_assets[0].get("name")
-        fallback_name = "Novaboard-Pardus-Kurulumlu-v1.0.deb"
-        return f"{RAW_SURUMLER_BASE}/{fallback_name}", fallback_name
+        fallback_name = f"Novaboard-Pardus-Kurulumlu-v{ver_num}.deb"
+        return f"{RAW_SURUMLER_BASE}/{v_folder}/{fallback_name}", fallback_name
 
 
 def _download_file(url: str, dest_path: str, on_progress=None, timeout: int = 30):

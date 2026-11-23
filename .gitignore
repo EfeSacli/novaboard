@@ -13,7 +13,7 @@ __pycache__/
 /*.deb
 GitHub_Yukle.vbs
 !surumler/
-!surumler/*
+!surumler/**
 
 # Kullanıcı Verileri ve İşletim Sistemi
 novaboard_verileri.json
