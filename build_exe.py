@@ -22,7 +22,7 @@ SURUMLER_DIR = "surumler"
 APP_SOURCE_FILES = [
     "app.py", "main_window.py", "drawer_hud.py", "screen_pen.py", "notebook_overlay.py",
     "theme_manager.py", "teacher_tools.py", "vocabulary_game.py", "vocabulary_data.py",
-    "data_manager.py", "sound_effects.py", "ui_kit.py",
+    "data_manager.py", "sound_effects.py", "ui_kit.py", "auto_updater.py",
 ]
 
 PARDUS_SOURCE_FILES = APP_SOURCE_FILES + [
@@ -44,11 +44,8 @@ PYINSTALLER_COMMON_ARGS = [
     "--add-data=icon.png;.",
     "--version-file=version_info.txt",
     "--collect-all=customtkinter",
-    "--hidden-import=PIL",
-    "--hidden-import=PIL.Image",
-    "--hidden-import=PIL.ImageDraw",
-    "--hidden-import=PIL.ImageTk",
-    "--hidden-import=PIL.ImageGrab",
+    "--exclude-module=PIL",
+    "--exclude-module=numpy",
     "--hidden-import=encodings",
     "--collect-all=encodings",
     "--clean",
@@ -144,7 +141,7 @@ def make_deb_package(output_deb_path):
     with tarfile.open(fileobj=ctrl_buf, mode="w:gz") as tar:
         ctrl_content = (
             "Package: novaboard\n"
-            "Version: 1.0.0\n"
+            "Version: 1.1.0\n"
             "Section: education\n"
             "Priority: optional\n"
             "Architecture: all\n"

@@ -1,8 +1,8 @@
 # UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(1, 1, 0, 0),
+    prodvers=(1, 1, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'Efe Saçlı'),
             StringStruct('FileDescription', 'Novaboard - Akıllı Tahta & Öğretmen Asistanı'),
-            StringStruct('FileVersion', '1.0.0.0'),
+            StringStruct('FileVersion', '1.1.0.0'),
             StringStruct('InternalName', 'Novaboard'),
             StringStruct('LegalCopyright', 'Copyright (C) 2026 Efe Saçlı'),
             StringStruct('OriginalFilename', 'Novaboard.exe'),
             StringStruct('ProductName', 'Novaboard'),
-            StringStruct('ProductVersion', '1.0.0.0')
+            StringStruct('ProductVersion', '1.1.0.0')
           ]
         )
       ]

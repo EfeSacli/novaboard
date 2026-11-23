@@ -1,12 +1,13 @@
 import os
 import sys
 import math
+import zlib
+import struct
 import ctypes
 from datetime import datetime
 import tkinter as tk
 from tkinter import colorchooser, filedialog, messagebox
 import customtkinter as ctk
-from PIL import Image, ImageDraw
 
 from ui_kit import (
     ThemedMixin, font, set_window_icon,
@@ -14,6 +15,202 @@ from ui_kit import (
     CARD, CARD_INNER,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_ACCENT,
 )
+
+
+def _hex_to_rgba(col):
+    if not col:
+        return None
+    if isinstance(col, tuple):
+        return col if len(col) == 4 else (*col, 255)
+    s = str(col).strip().lstrip("#")
+    if len(s) == 6:
+        return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16), 255)
+    return (255, 255, 255, 255)
+
+
+class _PureRGBAImage:
+    """
+    Saf Python RGBA 2B Görsel Tamponu (PIL / _imaging.pyd bağımlılığını tamamen ortadan kaldırır;
+    Windows 11 Akıllı Uygulama Denetimi / Smart App Control tarafından asla engellenmez).
+    """
+
+    def __init__(self, width: int, height: int, buf: bytearray = None):
+        self.width = int(width)
+        self.height = int(height)
+        self.size = (self.width, self.height)
+        self.buf = buf if buf is not None else bytearray(self.width * self.height * 4)
+
+    def set_px(self, x: int, y: int, rgba):
+        if 0 <= x < self.width and 0 <= y < self.height and rgba is not None:
+            idx = (y * self.width + x) * 4
+            self.buf[idx] = rgba[0]
+            self.buf[idx + 1] = rgba[1]
+            self.buf[idx + 2] = rgba[2]
+            self.buf[idx + 3] = rgba[3]
+
+    def resize(self, target_size) -> "_PureRGBAImage":
+        tw, th = max(1, int(target_size[0])), max(1, int(target_size[1]))
+        if tw == self.width and th == self.height:
+            return self
+        out = bytearray(tw * th * 4)
+        sw, sh = self.width, self.height
+        src = self.buf
+        # 2x2 kutu / alan örneklemeli yumuşatma (supersampling downsample)
+        for ty in range(th):
+            sy0 = int(ty * sh / th)
+            sy1 = min(sh - 1, int((ty + 0.5) * sh / th))
+            for tx in range(tw):
+                sx0 = int(tx * sw / tw)
+                sx1 = min(sw - 1, int((tx + 0.5) * sw / tw))
+                p00 = (sy0 * sw + sx0) * 4
+                p10 = (sy0 * sw + sx1) * 4
+                p01 = (sy1 * sw + sx0) * 4
+                p11 = (sy1 * sw + sx1) * 4
+                r = (src[p00] + src[p10] + src[p01] + src[p11]) >> 2
+                g = (src[p00 + 1] + src[p10 + 1] + src[p01 + 1] + src[p11 + 1]) >> 2
+                b = (src[p00 + 2] + src[p10 + 2] + src[p01 + 2] + src[p11 + 2]) >> 2
+                a = (src[p00 + 3] + src[p10 + 3] + src[p01 + 3] + src[p11 + 3]) >> 2
+                oidx = (ty * tw + tx) * 4
+                out[oidx] = r
+                out[oidx + 1] = g
+                out[oidx + 2] = b
+                out[oidx + 3] = a
+        return _PureRGBAImage(tw, th, out)
+
+    def to_png_bytes(self) -> bytes:
+        w, h = self.width, self.height
+        stride = w * 4
+        rows = [b"\x00" + bytes(self.buf[y * stride : (y + 1) * stride]) for y in range(h)]
+
+        def chunk(ctype: bytes, data: bytes) -> bytes:
+            crc = zlib.crc32(ctype + data) & 0xFFFFFFFF
+            return struct.pack("!I", len(data)) + ctype + data + struct.pack("!I", crc)
+
+        ihdr = struct.pack("!IIBBBBB", w, h, 8, 6, 0, 0, 0)
+        idat = zlib.compress(b"".join(rows), 6)
+        return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+
+    def to_photo_image(self) -> tk.PhotoImage:
+        return tk.PhotoImage(data=self.to_png_bytes())
+
+
+class _PureDraw:
+    """128x128 koordinat uzayını otomatik olarak hedef _PureRGBAImage boyutuna ölçekleyen saf Python vektör çizici."""
+
+    def __init__(self, img: _PureRGBAImage, virtual_size: int = 128):
+        self.img = img
+        self.scale = img.width / float(virtual_size)
+
+    def _s(self, v):
+        return v * self.scale
+
+    def _draw_disk(self, cx: float, cy: float, r: float, rgba):
+        if rgba is None:
+            return
+        r = max(0.6, r)
+        x0 = max(0, int(cx - r - 1))
+        x1 = min(self.img.width - 1, int(cx + r + 1))
+        y0 = max(0, int(cy - r - 1))
+        y1 = min(self.img.height - 1, int(cy + r + 1))
+        r2 = r * r
+        for y in range(y0, y1 + 1):
+            dy = y - cy
+            for x in range(x0, x1 + 1):
+                dx = x - cx
+                if dx * dx + dy * dy <= r2:
+                    self.img.set_px(x, y, rgba)
+
+    def line(self, pts, fill=None, width=1, **_kwargs):
+        rgba = _hex_to_rgba(fill)
+        if rgba is None or len(pts) < 2:
+            return
+        rad = max(0.6, (width * self.scale) / 2.0)
+        for i in range(len(pts) - 1):
+            x1, y1 = self._s(pts[i][0]), self._s(pts[i][1])
+            x2, y2 = self._s(pts[i + 1][0]), self._s(pts[i + 1][1])
+            dist = max(1, int(math.hypot(x2 - x1, y2 - y1) * 2))
+            for step in range(dist + 1):
+                t = step / float(dist)
+                self._draw_disk(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, rad, rgba)
+
+    def rectangle(self, xy, fill=None, outline=None, width=1):
+        x1, y1, x2, y2 = [self._s(v) for v in xy]
+        ix1, iy1 = max(0, int(min(x1, x2))), max(0, int(min(y1, y2)))
+        ix2, iy2 = min(self.img.width - 1, int(max(x1, x2))), min(self.img.height - 1, int(max(y1, y2)))
+        fill_rgba = _hex_to_rgba(fill)
+        if fill_rgba is not None:
+            for y in range(iy1, iy2 + 1):
+                for x in range(ix1, ix2 + 1):
+                    self.img.set_px(x, y, fill_rgba)
+        if outline:
+            ox1, oy1, ox2, oy2 = xy
+            self.line([(ox1, oy1), (ox2, oy1), (ox2, oy2), (ox1, oy2), (ox1, oy1)], fill=outline, width=max(2, width))
+
+    def rounded_rectangle(self, xy, radius=8, fill=None, outline=None, width=1):
+        self.rectangle(xy, fill=fill, outline=outline, width=width)
+
+    def ellipse(self, xy, fill=None, outline=None, width=1):
+        x1, y1, x2, y2 = [self._s(v) for v in xy]
+        cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        rx, ry = max(0.5, abs(x2 - x1) / 2.0), max(0.5, abs(y2 - y1) / 2.0)
+        fill_rgba = _hex_to_rgba(fill)
+        out_rgba = _hex_to_rgba(outline)
+        bw = max(1.0, width * self.scale)
+        ix1, iy1 = max(0, int(cx - rx - bw - 1)), max(0, int(cy - ry - bw - 1))
+        ix2, iy2 = min(self.img.width - 1, int(cx + rx + bw + 1)), min(self.img.height - 1, int(cy + ry + bw + 1))
+        for y in range(iy1, iy2 + 1):
+            ny = (y - cy) / ry
+            for x in range(ix1, ix2 + 1):
+                nx = (x - cx) / rx
+                d = nx * nx + ny * ny
+                if fill_rgba is not None and d <= 1.0:
+                    self.img.set_px(x, y, fill_rgba)
+                if out_rgba is not None:
+                    irx, iry = max(0.2, rx - bw), max(0.2, ry - bw)
+                    idist = ((x - cx) / irx) ** 2 + ((y - cy) / iry) ** 2
+                    if d <= 1.05 and idist >= 0.85:
+                        self.img.set_px(x, y, out_rgba)
+
+    def polygon(self, pts, fill=None, outline=None, width=3):
+        if len(pts) < 3:
+            return
+        spts = [(self._s(px), self._s(py)) for px, py in pts]
+        fill_rgba = _hex_to_rgba(fill)
+        if fill_rgba is not None:
+            min_y = max(0, int(min(p[1] for p in spts)))
+            max_y = min(self.img.height - 1, int(max(p[1] for p in spts)))
+            n = len(spts)
+            for y in range(min_y, max_y + 1):
+                nodes = []
+                j = n - 1
+                for i in range(n):
+                    yi, yj = spts[i][1], spts[j][1]
+                    if (yi < y <= yj) or (yj < y <= yi):
+                        nodes.append(spts[i][0] + (y - yi) / (yj - yi) * (spts[j][0] - spts[i][0]))
+                    j = i
+                nodes.sort()
+                for k in range(0, len(nodes) - 1, 2):
+                    x_start = max(0, int(nodes[k]))
+                    x_end = min(self.img.width - 1, int(math.ceil(nodes[k + 1])))
+                    for x in range(x_start, x_end + 1):
+                        self.img.set_px(x, y, fill_rgba)
+        if outline:
+            self.line(list(pts) + [pts[0]], fill=outline, width=width)
+
+    def arc(self, xy, start=0, end=360, fill=None, width=4):
+        rgba = _hex_to_rgba(fill)
+        if rgba is None:
+            return
+        x1, y1, x2, y2 = [self._s(v) for v in xy]
+        cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        rx, ry = max(1.0, abs(x2 - x1) / 2.0), max(1.0, abs(y2 - y1) / 2.0)
+        rad = max(0.8, (width * self.scale) / 2.0)
+        steps = max(24, int(abs(end - start) / 3))
+        for i in range(steps + 1):
+            ang = math.radians(start + (end - start) * (i / float(steps)))
+            px = cx + rx * math.cos(ang)
+            py = cy - ry * math.sin(ang)
+            self._draw_disk(px, py, rad, rgba)
 
 if sys.platform == "win32":
     user32 = ctypes.windll.user32
@@ -76,12 +273,11 @@ def _rounded_rect(d, xy, radius=8, **kwargs):
 
 def _make_icon(kind: str, size: int = 26, accent_hex: str = "#ef4444") -> ctk.CTkImage:
     """
-    4x supersampling (128x128 -> size x size LANCZOS) ile gerçekçi, net, renkli
-    araç ikonları üretir (kalem, fosforlu kalem, silgi, imleç, şekiller, tahta vb.).
+    2x supersampling (52x52 -> size x size) ile saf Python RGBA vektör çizici kullanarak
+    harici C-extension (_imaging.pyd) gerektirmeden keskin araç ikonları üretir.
     """
-    S = 128
-    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
+    img = _PureRGBAImage(52, 52)
+    d = _PureDraw(img, virtual_size=128)
 
     if kind == "hand":
         # Klasik beyaz/mavi fare imleci oku
@@ -228,8 +424,7 @@ def _make_icon(kind: str, size: int = 26, accent_hex: str = "#ef4444") -> ctk.CT
         d.line([(52, 54), (54, 96)], fill="#ffffff", width=6)
         d.line([(76, 54), (74, 96)], fill="#ffffff", width=6)
 
-    resample_filter = getattr(getattr(Image, "Resampling", Image), "LANCZOS", getattr(Image, "ANTIALIAS", 1))
-    resized = img.resize((size, size), resample_filter)
+    resized = img.resize((size, size))
     return ctk.CTkImage(light_image=resized, dark_image=resized, size=(size, size))
 
 

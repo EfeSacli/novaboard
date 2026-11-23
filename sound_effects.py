@@ -98,63 +98,59 @@ class SoundPlayer:
 
     def _build_sound_cache(self):
         try:
-            # 1. Stream / Yazım / Seçim Tıkırtısı: 150Hz-380Hz arası kısa mekanik röle/anahtar darbesi
+            # 1. Tık / Seçim Sesi: Tok, net ve kulağı yormayan mekanik anahtar/ahşap tıkırtısı
             self._cache["tick"] = _synthesize_wav([
-                ((330.0, 155.0), 0.018, 0.10, 0.002, 0.12),
+                ((420.0, 220.0), 0.038, 0.42, 0.003, 0.14),
             ])
-            # 2. Onay / Tamamlanma Sesi: Fiziksel mekanik anahtarın kapanma hissi veren kısa, tok "click/thud"
+            # 2. Onay / Öğrenci Seçimi / Doğru Cevap: Sakin, tok ve net çift kademeli onay tınısı
             self._cache["reveal"] = _synthesize_wav([
-                ((190.0, 88.0), 0.036, 0.18, 0.002, 0.15),
-                ((380.0, 210.0), 0.024, 0.12, 0.001, 0.10),
+                (330.0, 0.075, 0.48, 0.008, 0.14),
+                (493.88, 0.180, 0.52, 0.010, 0.12),
             ])
-            # 3. Hata / Uyarı Sesi: Düşük frekanslı, kısa mekanik uyarı tonu
+            # 3. Hata / Yanlış Cevap Sesi: Düşük frekanslı, tok mekanik uyarı tonu
             self._cache["error"] = _synthesize_wav([
-                ((145.0, 108.0), 0.042, 0.16, 0.003, 0.25),
-                (0, 0.016, 0.0),
-                ((135.0, 98.0), 0.045, 0.16, 0.003, 0.25),
+                ((210.0, 150.0), 0.080, 0.48, 0.005, 0.22),
+                (0, 0.025, 0.0),
+                ((180.0, 130.0), 0.110, 0.48, 0.005, 0.22),
             ])
-            # 4. Kağıt buruşturma: Kuru, mekanik dokulu kısa kağıt hışırtısı
+            # 4. Kağıt buruşturma: Yumuşak, doğal kağıt dokusu
             self._cache["crumple"] = _synthesize_wav([
-                (-1, 0.032, 0.07, 0.004, 0.0),
-                (0, 0.010, 0.0),
-                (-1, 0.038, 0.08, 0.004, 0.0),
-                (0, 0.010, 0.0),
-                (-1, 0.030, 0.06, 0.004, 0.0),
+                (-1, 0.045, 0.30, 0.005, 0.0),
+                (0, 0.014, 0.0),
+                (-1, 0.055, 0.34, 0.005, 0.0),
+                (0, 0.012, 0.0),
+                (-1, 0.045, 0.28, 0.005, 0.0),
             ])
-            # 5. Çöp kovasına düşüş: Tok, kuru mekanik "thud"
+            # 5. Çöp kovasına düşüş: Tok akustik "thud" ve onay
             self._cache["trash_swish"] = _synthesize_wav([
-                ((220.0, 110.0), 0.055, 0.18, 0.003, 0.12),
-                ((310.0, 180.0), 0.035, 0.12, 0.002, 0.08),
+                ((280.0, 140.0), 0.085, 0.50, 0.005, 0.15),
+                (440.0, 0.130, 0.42, 0.008, 0.10),
             ])
-            # 6. Çöp kovası boşaltma: Kuru mekanik röle serisi
+            # 6. Çöp kovası boşaltma / çöplerin dışarı fırlaması: Tok yükselen efekt
             self._cache["trash_burst"] = _synthesize_wav([
-                ((160.0, 320.0), 0.045, 0.15, 0.003, 0.12),
-                (0, 0.012, 0.0),
-                ((240.0, 390.0), 0.040, 0.14, 0.002, 0.10),
+                ((220.0, 480.0), 0.120, 0.48, 0.008, 0.14),
+                (0, 0.018, 0.0),
+                (587.33, 0.160, 0.46, 0.008, 0.10),
             ])
-            # 7. Süre bitimi: Mekanik çift darbeli düşük-orta frekanslı tok uyarı
+            # 7. Süre bitimi: Sakin, tok çift vuruşlu zil
             self._cache["timer_alarm"] = _synthesize_wav([
-                ((320.0, 220.0), 0.065, 0.18, 0.003, 0.14),
-                (0, 0.035, 0.0),
-                ((320.0, 220.0), 0.085, 0.18, 0.003, 0.14),
+                (440.0, 0.180, 0.55, 0.010, 0.15),
+                (0, 0.045, 0.0),
+                (587.33, 0.280, 0.55, 0.010, 0.14),
             ])
-            # 8. Tur tamamlandı: Üç kademeli mekanik kilit/onay sesi
+            # 8. Tur tamamlandı: Üç kademeli sakin, sıcak onay dizisi
             self._cache["complete_fanfare"] = _synthesize_wav([
-                ((220.0, 140.0), 0.035, 0.14, 0.002, 0.10),
-                (0, 0.012, 0.0),
-                ((280.0, 180.0), 0.035, 0.15, 0.002, 0.10),
-                (0, 0.012, 0.0),
-                ((360.0, 220.0), 0.055, 0.18, 0.002, 0.12),
+                (293.66, 0.095, 0.46, 0.008, 0.12),
+                (369.99, 0.095, 0.48, 0.008, 0.12),
+                (440.00, 0.240, 0.52, 0.010, 0.12),
             ])
 
-            if not HAS_WINSOUND:
-                self._temp_dir = os.path.join(tempfile.gettempdir(), "novaboard_sounds")
-                os.makedirs(self._temp_dir, exist_ok=True)
-                for key, data in self._cache.items():
-                    path = os.path.join(self._temp_dir, f"{key}.wav")
-                    if not os.path.exists(path):
-                        with open(path, "wb") as f:
-                            f.write(data)
+            self._temp_dir = os.path.join(tempfile.gettempdir(), "novaboard_sounds_v2")
+            os.makedirs(self._temp_dir, exist_ok=True)
+            for key, data in self._cache.items():
+                path = os.path.join(self._temp_dir, f"{key}.wav")
+                with open(path, "wb") as f:
+                    f.write(data)
         except Exception:
             pass
 
@@ -180,13 +176,25 @@ class SoundPlayer:
 
         if HAS_WINSOUND:
             try:
-                winsound.PlaySound(
-                    wav_bytes,
-                    winsound.SND_MEMORY | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
-                )
-                return
+                if self._temp_dir:
+                    wav_path = os.path.join(self._temp_dir, f"{key}.wav")
+                    if os.path.exists(wav_path):
+                        winsound.PlaySound(
+                            wav_path,
+                            winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
+                        )
+                        return
             except Exception:
                 pass
+
+            def _run_win_mem():
+                try:
+                    winsound.PlaySound(wav_bytes, winsound.SND_MEMORY | winsound.SND_NODEFAULT)
+                except Exception:
+                    pass
+
+            threading.Thread(target=_run_win_mem, daemon=True).start()
+            return
 
         def _run_linux():
             try:

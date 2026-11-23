@@ -119,9 +119,7 @@ def set_window_icon(window, default=False):
                 window._icon_img = tk.PhotoImage(file=icon_png)
                 window.iconphoto(default, window._icon_img)
             except Exception:
-                from PIL import ImageTk, Image
-                window._icon_img = ImageTk.PhotoImage(Image.open(icon_png))
-                window.iconphoto(default, window._icon_img)
+                pass
     except Exception:
         pass
 

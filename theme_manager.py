@@ -6,7 +6,7 @@ import customtkinter as ctk
 THEMES = {
     "dark": {
         "id": "dark",
-        "name": "Linear Carbon (Zümrüt Monokrom)",
+        "name": "Koyu Tema (Karbon)",
         "appearance_mode": "Dark",
         "bg_main": "#09090b",          # Zinc 950
         "bg_sidebar": "#121214",       # Carbon 900
@@ -28,40 +28,6 @@ THEMES = {
         "success_bg": "#052e16",
         "success_text": "#6ee7b7",
         "danger": "#ef4444",           # Red 500
-        "danger_hover": "#dc2626",
-        "danger_bg": "#450a0a",
-        "danger_text": "#fca5a5",
-        "badge_remaining_bg": "#052e16",
-        "badge_remaining_text": "#6ee7b7",
-        "badge_picked_bg": "#27272a",
-        "badge_picked_text": "#a1a1aa",
-        "badge_exempt_bg": "#451a03",
-        "badge_exempt_text": "#fcd34d",
-    },
-    "amber": {
-        "id": "amber",
-        "name": "Claude Code (Terminal Amber)",
-        "appearance_mode": "Dark",
-        "bg_main": "#09090b",          # Zinc 950
-        "bg_sidebar": "#121214",       # Carbon 900
-        "bg_card": "#121214",          # Carbon 900
-        "bg_card_inner": "#18181b",    # Zinc 900
-        "bg_hover": "#27272a",         # Zinc 800
-        "border": "#27272a",           # 1px Zinc 800
-        "text_primary": "#fafafa",     # Zinc 50
-        "text_secondary": "#a1a1aa",   # Zinc 400
-        "text_muted": "#71717a",       # Zinc 500
-        "accent": "#f59e0b",           # Terminal Amber 500
-        "accent_hover": "#d97706",     # Amber 600
-        "accent_text": "#09090b",
-        "input_bg": "#121214",
-        "input_border": "#27272a",
-        "input_text": "#fafafa",
-        "success": "#10b981",
-        "success_hover": "#059669",
-        "success_bg": "#052e16",
-        "success_text": "#6ee7b7",
-        "danger": "#ef4444",
         "danger_hover": "#dc2626",
         "danger_bg": "#450a0a",
         "danger_text": "#fca5a5",

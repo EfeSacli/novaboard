@@ -24,6 +24,7 @@ from theme_manager import ThemeManager
 from main_window import MainWindow
 from drawer_hud import DrawerHUD
 from screen_pen import ScreenPenHUD
+from auto_updater import AutoUpdater
 
 SCALE_MAP = {
     "Standart": 1.0,
@@ -77,6 +78,10 @@ class NovaboardApp:
         )
         self.main_window.protocol("WM_DELETE_WINDOW", self.on_main_close)
         self.main_window.bind("<FocusIn>", self._on_main_window_focus)
+
+        # 3. Arka planda sessiz otomatik güncelleme kontrolü (In-App Auto-Updater)
+        self.auto_updater = AutoUpdater(self.main_window)
+        self.auto_updater.schedule_check(delay_ms=2500)
 
     def _on_main_window_focus(self, event):
         if event.widget is self.main_window:
