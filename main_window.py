@@ -17,9 +17,9 @@ from ui_kit import (
 
 # Öğrenci durum rozeti (Sırada / Seçildi / Muaf) renk ve etiket tablosu
 STATUS_BADGE = {
-    "picked": ("[PICKED] Seçildi", "badge_picked_bg", "badge_picked_text"),
-    "exempt": ("[EXEMPT] Muaf", "badge_exempt_bg", "badge_exempt_text"),
-    "remaining": ("[READY] Sırada", "badge_remaining_bg", "badge_remaining_text"),
+    "picked": ("Soru Yöneltildi", "badge_picked_bg", "badge_picked_text"),
+    "exempt": ("Muaf (Devamsız)", "badge_exempt_bg", "badge_exempt_text"),
+    "remaining": ("Sırada", "badge_remaining_bg", "badge_remaining_text"),
 }
 
 
@@ -64,96 +64,16 @@ class MainWindow(ThemedMixin, ctk.CTk):
     def _setup_layout(self):
         self.styled(self, fg_color="bg_main")
         self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=0)
         self.grid_columnconfigure(1, weight=1)
-
-        self._last_op_latency_ms = 0.3
-        self._micro_log_msg = "> Ready // Roster & AST context indexed"
 
         self._setup_sidebar()
         self._setup_main_area()
-        self._setup_status_bar()
-
-    def _setup_status_bar(self):
-        """Claude Code / Linear tarzı yüksek yoğunluklu Context, Token/Kayıt, Latency, Micro-Log ve AUDIO: ON/OFF çubuğu."""
-        self.status_bar = self.styled(
-            ctk.CTkFrame(self, height=26, corner_radius=0, border_width=1),
-            fg_color="bg_sidebar",
-            border_color="border",
-        )
-        self.status_bar.grid(row=1, column=0, columnspan=2, sticky="ew")
-        self.status_bar.pack_propagate(False)
-
-        self.micro_log_lbl = self.styled(
-            ctk.CTkLabel(self.status_bar, text=self._micro_log_msg, font=mono_font(10, bold=True)),
-            TEXT_ACCENT,
-        )
-        self.micro_log_lbl.pack(side="left", padx=(10, 12))
-
-        self.audio_toggle_btn = ctk.CTkButton(
-            self.status_bar,
-            text=self._get_audio_badge_text(),
-            width=86,
-            height=20,
-            corner_radius=3,
-            border_width=1,
-            font=mono_font(9, bold=True),
-            command=self._on_status_audio_toggle,
-        )
-        self.audio_toggle_btn.pack(side="right", padx=(6, 8), pady=2)
-
-        self.telemetry_lbl = self.styled(
-            ctk.CTkLabel(self.status_bar, text="CTX: novaboard_verileri.json | LATENCY: 0.3ms", font=mono_font(10)),
-            TEXT_SECONDARY,
-        )
-        self.telemetry_lbl.pack(side="right", padx=8)
-
-    def _get_audio_badge_text(self):
-        return "AUDIO: ON" if self.sound.is_enabled() else "AUDIO: OFF"
-
-    def _style_audio_badge(self):
-        if not hasattr(self, "audio_toggle_btn") or not self.audio_toggle_btn.winfo_exists():
-            return
-        t = self.tm.get_theme()
-        on = self.sound.is_enabled()
-        self.audio_toggle_btn.configure(
-            text=self._get_audio_badge_text(),
-            fg_color=t["badge_remaining_bg"] if on else t["bg_card_inner"],
-            hover_color=t["bg_hover"],
-            text_color=t["badge_remaining_text"] if on else t["text_muted"],
-            border_color=t["accent"] if on else t["border"],
-        )
-
-    def _on_status_audio_toggle(self):
-        new_state = self.sound.toggle_audio()
-        if hasattr(self, "sound_switch") and self.sound_switch.winfo_exists():
-            if new_state:
-                self.sound_switch.select()
-            else:
-                self.sound_switch.deselect()
-        self._style_audio_badge()
-        self.log_action(f"Audio engine switched to {'ON' if new_state else 'OFF'}")
 
     def log_action(self, message: str, latency_ms: float = None):
-        if latency_ms is not None:
-            self._last_op_latency_ms = latency_ms
-        self._micro_log_msg = f"> {message}"
-        if hasattr(self, "micro_log_lbl") and self.micro_log_lbl.winfo_exists():
-            self.micro_log_lbl.configure(text=self._micro_log_msg)
-        self._update_telemetry_bar()
+        pass
 
     def _update_telemetry_bar(self):
-        if not hasattr(self, "telemetry_lbl") or not self.telemetry_lbl.winfo_exists():
-            return
-        active = self.dm.get_active_class() or "NONE"
-        total = len(self.dm.get_all_students(active)) if active != "NONE" else 0
-        rem = len(self.dm.get_remaining_students(active)) if active != "NONE" else 0
-        custom_v = len(self.dm.get_custom_vocabulary())
-        ctx_name = os.path.basename(getattr(self.dm, "file_path", "novaboard_verileri.json"))
-        self.telemetry_lbl.configure(
-            text=f"CTX: {ctx_name}  │  CLS: {active} [{rem:02d}/{total:02d}]  │  VOCAB: {108 + custom_v}  │  LATENCY: {self._last_op_latency_ms:.1f}ms"
-        )
-        self._style_audio_badge()
+        pass
 
     def _setup_sidebar(self):
         self.sidebar_frame = self.styled(ctk.CTkFrame(self, width=260, corner_radius=0), fg_color="bg_sidebar")
@@ -734,7 +654,7 @@ class MainWindow(ThemedMixin, ctk.CTk):
             self._update_telemetry_bar()
             return
 
-        self.current_class_title.configure(text=f"{active} // SINIF LİSTESİ", text_color=t["text_primary"])
+        self.current_class_title.configure(text=f"{active} Sınıf Listesi", text_color=t["text_primary"])
 
         all_students = self.dm.get_all_students(active)
         picked_set = set(self.dm.get_picked_students(active))
@@ -991,120 +911,49 @@ class MainWindow(ThemedMixin, ctk.CTk):
             messagebox.showinfo("Bilgilendirme", "Lütfen önce bir sınıf tanımlayınız.")
             return
 
-        self.log_action(f"Opening bulk roster diff editor for {active}...")
-        modal, t = self._create_modal(f"Toplu Liste Aktarımı & Diff Inspector - {active}", 780, 520)
-
-        head_row = ctk.CTkFrame(modal, fg_color="transparent")
-        head_row.pack(fill="x", padx=14, pady=(10, 4))
+        modal, t = self._create_modal(f"Toplu Liste Aktarımı - {active}", 520, 460)
 
         ctk.CTkLabel(
-            head_row,
-            text="SOL: Ham Liste Girişi (e-Okul / Excel)   │   SAĞ: Canlı Git-Diff Önizlemesi (+ Eklenecek / - Silinecek)",
-            font=mono_font(10, bold=True),
+            modal,
+            text=(
+                "e-Okul veya Excel üzerinden kopyalanan listeyi bu alana yapıştırabilirsiniz.\n"
+                "Sıra numaraları ve gereksiz karakterler sistem tarafından otomatik temizlenir."
+            ),
+            font=font(11),
             text_color=t["text_secondary"],
-        ).pack(side="left")
-
-        diff_stats_lbl = ctk.CTkLabel(
-            head_row, text="+0  -0  =0", font=mono_font(11, bold=True), text_color=t["accent"]
-        )
-        diff_stats_lbl.pack(side="right")
-
-        panes = ctk.CTkFrame(modal, fg_color="transparent")
-        panes.pack(fill="both", expand=True, padx=14, pady=4)
-        panes.grid_columnconfigure(0, weight=1)
-        panes.grid_columnconfigure(1, weight=1)
-        panes.grid_rowconfigure(0, weight=1)
+            justify="left",
+        ).pack(padx=16, pady=(12, 6), anchor="w")
 
         textbox = ctk.CTkTextbox(
-            panes,
+            modal,
+            height=280,
             font=mono_font(11),
             fg_color=t["input_bg"],
             text_color=t["input_text"],
-            corner_radius=4,
+            corner_radius=6,
             border_width=1,
             border_color=t["input_border"],
         )
-        textbox.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        textbox.pack(fill="both", expand=True, padx=16, pady=6)
         attach_context_menu(textbox, self.tm)
 
-        diff_scroll = ctk.CTkScrollableFrame(
-            panes,
-            fg_color=t["bg_card"],
-            corner_radius=4,
-            border_width=1,
-            border_color=t["border"],
-        )
-        diff_scroll.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
-
-        current_students = list(self.dm.get_all_students(active))
+        current_students = self.dm.get_all_students(active)
         if current_students:
             textbox.insert("1.0", "\n".join(current_students))
 
-        def _render_diff(_event=None):
-            t0 = time.perf_counter()
-            parsed = self.dm.parse_bulk_text(textbox.get("1.0", "end"))
-            old_set = set(current_students)
-            new_set = set(parsed)
-
-            added = [s for s in parsed if s not in old_set]
-            removed = [s for s in current_students if s not in new_set]
-            unchanged = [s for s in parsed if s in old_set]
-
-            diff_stats_lbl.configure(text=f"+{len(added)}  -{len(removed)}  ={len(unchanged)}")
-
-            for ch in diff_scroll.winfo_children():
-                ch.destroy()
-
-            line_no = 1
-            for s in added:
-                r = ctk.CTkFrame(diff_scroll, fg_color="#052e16", corner_radius=3, height=22)
-                r.pack(fill="x", pady=1, padx=2)
-                r.pack_propagate(False)
-                ctk.CTkLabel(
-                    r, text=f"{line_no:02d}  +  {s}", font=mono_font(10, bold=True),
-                    text_color="#4ade80", anchor="w",
-                ).pack(fill="x", padx=6)
-                line_no += 1
-
-            for s in removed:
-                r = ctk.CTkFrame(diff_scroll, fg_color="#450a0a", corner_radius=3, height=22)
-                r.pack(fill="x", pady=1, padx=2)
-                r.pack_propagate(False)
-                ctk.CTkLabel(
-                    r, text=f"{line_no:02d}  -  {s}", font=mono_font(10, bold=True),
-                    text_color="#f87171", anchor="w",
-                ).pack(fill="x", padx=6)
-                line_no += 1
-
-            for s in unchanged[:40]:
-                r = ctk.CTkFrame(diff_scroll, fg_color=t["bg_card_inner"], corner_radius=3, height=20)
-                r.pack(fill="x", pady=1, padx=2)
-                r.pack_propagate(False)
-                ctk.CTkLabel(
-                    r, text=f"{line_no:02d}     {s}", font=mono_font(10),
-                    text_color=t["text_muted"], anchor="w",
-                ).pack(fill="x", padx=6)
-                line_no += 1
-
-            elapsed = (time.perf_counter() - t0) * 1000.0
-            self.log_action(f"Computed roster diff (+{len(added)} / -{len(removed)})", latency_ms=elapsed)
-
-        textbox.bind("<KeyRelease>", _render_diff)
-        _render_diff()
-
         btn_frame = ctk.CTkFrame(modal, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=14, pady=(6, 12))
+        btn_frame.pack(fill="x", padx=16, pady=(6, 12))
 
         ctk.CTkButton(
-            btn_frame, text="PANODAN YAPIŞTIR", height=32, corner_radius=4, font=mono_font(10, bold=True),
+            btn_frame, text="📋 Panodan Yapıştır", height=34, corner_radius=4, font=font(11, bold=True),
             fg_color=t["accent"], hover_color=t["accent_hover"], text_color=t["accent_text"],
-            command=lambda: (paste_into_widget(textbox), _render_diff()),
+            command=lambda: paste_into_widget(textbox),
         ).pack(side="left", padx=(0, 6))
 
         ctk.CTkButton(
-            btn_frame, text="TEMİZLE", height=32, width=84, corner_radius=4, font=mono_font(10, bold=True),
+            btn_frame, text="🗑️ Temizle", height=34, width=84, corner_radius=4, font=font(11),
             fg_color=t["danger_bg"], hover_color=t["danger_hover"], text_color=t["danger_text"],
-            command=lambda: (textbox.delete("1.0", "end"), _render_diff()),
+            command=lambda: textbox.delete("1.0", "end"),
         ).pack(side="left")
 
         def _save():
@@ -1117,15 +966,15 @@ class MainWindow(ThemedMixin, ctk.CTk):
             self.sound.play_reveal()
             modal.destroy()
             self.refresh_all()
-            self.log_action(f"Committed {len(parsed)} records to {active}")
+            messagebox.showinfo("İşlem Başarılı", f"{len(parsed)} adet öğrenci kaydı sisteme aktarılmıştır.")
 
         ctk.CTkButton(
-            btn_frame, text="UYGULA & KAYDET", height=32, corner_radius=4, font=mono_font(10, bold=True),
+            btn_frame, text="Kaydet ve Aktar", height=34, corner_radius=4, font=font(11, bold=True),
             fg_color=t["success"], hover_color=t["success_hover"], text_color="#ffffff", command=_save,
         ).pack(side="right", padx=(6, 0))
 
         ctk.CTkButton(
-            btn_frame, text="İPTAL", height=32, width=70, corner_radius=4, font=mono_font(10),
+            btn_frame, text="İptal", height=34, width=70, corner_radius=4, font=font(11),
             fg_color=t["bg_card"], hover_color=t["bg_hover"],
             text_color=t["text_primary"], command=modal.destroy,
         ).pack(side="right")

@@ -141,7 +141,7 @@ def make_deb_package(output_deb_path):
     with tarfile.open(fileobj=ctrl_buf, mode="w:gz") as tar:
         ctrl_content = (
             "Package: novaboard\n"
-            "Version: 1.1.0\n"
+            "Version: 1.2.0\n"
             "Section: education\n"
             "Priority: optional\n"
             "Architecture: all\n"

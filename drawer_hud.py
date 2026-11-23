@@ -184,7 +184,7 @@ class DrawerHUD(ThemedMixin, ctk.CTkToplevel):
         self.card_frame.pack_propagate(False)
 
         self.name_label = self.styled(
-            ctk.CTkLabel(self.card_frame, text="READY // SEÇİM BEKLENİYOR", font=font(13, bold=True)), TEXT_PRIMARY
+            ctk.CTkLabel(self.card_frame, text="Öğrenci Seçimi", font=font(13, bold=True)), TEXT_PRIMARY
         )
         self.name_label.pack(expand=True, pady=(2, 0))
 
