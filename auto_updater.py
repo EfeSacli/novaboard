@@ -32,7 +32,7 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-CURRENT_VERSION = '1.2.0'
+CURRENT_VERSION = "1.2.1"
 GITHUB_REPO = "EfeSacli/novaboard"
 GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 RAW_SURUMLER_BASE = f"https://github.com/{GITHUB_REPO}/raw/main/surumler"
