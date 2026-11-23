@@ -530,8 +530,10 @@ class MainWindow(ThemedMixin, ctk.CTk):
         """Programı yeni tema, ölçek ve yazı tipi ayarlarıyla temiz bir şekilde yeniden başlatır."""
         try:
             clean_env = os.environ.copy()
-            for key in ("_MEIPASS2", "_MEIPASS", "PYTHONPATH", "PYTHONHOME"):
-                clean_env.pop(key, None)
+            clean_env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+            for key in list(clean_env.keys()):
+                if key.startswith(("_PYI", "_MEI")) or key in ("PYTHONPATH", "PYTHONHOME", "TCL_LIBRARY", "TK_LIBRARY"):
+                    clean_env.pop(key, None)
 
             creation_flags = 0
             if sys.platform == "win32":

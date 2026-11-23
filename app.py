@@ -1,5 +1,14 @@
+import os
 import sys
 import ctypes
+
+# PyInstaller 6.x --onefile alt süreçlerinin (Inno Setup kurulum sihirbazı veya yeni .exe güncellemesi)
+# kapanan eski sürecin silinen _MEI klasöründe python314.dll aramasını kesin olarak engelle
+os.environ["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+for _pyi_key in list(os.environ.keys()):
+    if _pyi_key.startswith(("_PYI", "_MEI")):
+        os.environ.pop(_pyi_key, None)
+
 import customtkinter as ctk
 
 APP_ID = "novaboard.smartboard.assistant.v1.0"

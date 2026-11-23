@@ -151,13 +151,24 @@ def _download_file(url: str, dest_path: str, on_progress=None, timeout: int = 30
 
 def _get_clean_env() -> dict:
     """
-    PyInstaller --onefile çalışırken ortam değişkenlerine (_MEIPASS2, _MEIPASS, PATH içindeki _MEI klasörü vb.)
-    kendi geçici klasörünü yazar. Yeni indirilen .exe başlatılırken bu değişkenler temizlenmezse yeni .exe
-    kapanmakta olan eski .exe'nin silinen _MEI klasöründe python314.dll arar ve hata verir.
-    Bu fonksiyon tüm PyInstaller kalıntılarını temizler.
+    PyInstaller 6.x --onefile çalışırken ortam değişkenlerine (_PYI_APPLICATION_HOME_DIR,
+    _PYI_PARENT_PROCESS_LEVEL, _PYI_ARCHIVE_FILE, _MEIPASS2 vb.) kendi geçici _MEI klasörünü yazar.
+    Kurulum sihirbazı (Inno Setup) veya yeni .exe başlatılırken bu değişkenler temizlenmezse,
+    kurulum sonunda başlatılan yeni .exe eski silinen _MEI klasöründe python314.dll arar ve hata verir.
     """
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetDllDirectoryW(None)
+        except Exception:
+            pass
+
     clean_env = os.environ.copy()
-    for key in ("_MEIPASS2", "_MEIPASS", "PYTHONPATH", "PYTHONHOME", "TCL_LIBRARY", "TK_LIBRARY"):
+    clean_env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    for key in list(clean_env.keys()):
+        if key.startswith(("_PYI", "PYI", "_MEI")) and key != "PYINSTALLER_RESET_ENVIRONMENT":
+            clean_env.pop(key, None)
+    for key in ("PYTHONPATH", "PYTHONHOME", "TCL_LIBRARY", "TK_LIBRARY"):
         clean_env.pop(key, None)
 
     old_mei = getattr(sys, "_MEIPASS", None)
